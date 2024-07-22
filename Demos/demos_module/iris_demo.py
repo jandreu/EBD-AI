@@ -60,7 +60,7 @@ precomputed_partitions_vl = utils.construct_partitions(X, fz_type_studied, n_par
 # Split the data into a training set and a test set
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=0)
 pts = pattern_stability.pattern_stabilizer(X_train, y_train, nRules=nRules, nAnts=nAnts, fuzzy_type=fz_type_studied, tolerance=tolerance, class_names=class_names, n_linguistic_variables=vl, verbose=True, linguistic_variables=precomputed_partitions_vl, runner=runner)
-pts.get_patterns_scores(10)
+
 # We create a FRBC with the precomputed partitions and the specified fuzzy set type, 
 fl_classifier = GA.BaseFuzzyRulesClassifier(nRules=nRules, linguistic_variables=precomputed_partitions_vl, nAnts=nAnts, class_names=class_names, n_linguistic_variables=vl, fuzzy_type=fz_type_studied, verbose=True, tolerance=tolerance, runner=runner)
 
