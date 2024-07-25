@@ -63,11 +63,12 @@ This is an example of a textual report:
 
 The pie charts look like this:
 
-.. image:: ../images/Class_usage_setosa.png
+.. image:: images/Class_usage_setosa.png
     :width: 200
 
-.. image:: ../images/Var_usage_per_class_petal.png
-    ::width: 200
+
+.. image:: images/Var_usage_per_class_petal.png
+    :width: 200
 
 
 
