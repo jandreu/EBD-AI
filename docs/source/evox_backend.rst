@@ -395,7 +395,7 @@ See Also
 ========
 
 - :ref:`ga` - Genetic Algorithm Details
-- :ref:`optimize` - Optimization Guide  
+- :doc:`optimize` - Optimization Guide
 - :ref:`extending` - Extending Ex-Fuzzy
 - `EvoX Documentation <https://evox.readthedocs.io/>`_
 - `PyTorch Documentation <https://pytorch.org/docs/>`_
