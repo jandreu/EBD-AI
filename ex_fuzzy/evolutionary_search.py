@@ -24,9 +24,10 @@ from typing import Optional, Any
 
 # Import necessary modules
 from ._problem import Integer, Problem
+from ._fitness import (DEFAULT_COMPACTNESS_WEIGHT, DEFAULT_COVERAGE_WEIGHT, score_rulebase,
+                       score_rulebase_objects)
 from . import fuzzy_sets as fs
 from . import rules
-from . import eval_rules as evr
 
 
 class ExploreRuleBases(Problem):
@@ -65,7 +66,8 @@ class ExploreRuleBases(Problem):
 
     def __init__(self, X: np.array, y: np.array, nRules: int, n_classes: int,
                  candidate_rules: rules.MasterRuleBase, thread_runner: Optional[Any]=None,
-                 tolerance:float = 0.01) -> None:
+                 tolerance:float = 0.01, alpha: float = DEFAULT_COMPACTNESS_WEIGHT,
+                 beta: float = DEFAULT_COVERAGE_WEIGHT, pareto: bool = False) -> None:
         """
         Initialize the rule selection optimization problem.
 
@@ -76,7 +78,10 @@ class ExploreRuleBases(Problem):
             n_classes: number of classes in the problem.
             candidate_rules: MasterRuleBase object containing candidate rules.
             thread_runner: Optional elementwise runner, such as ``StarmapParallelization``
-            tolerance: float. Tolerance for the size evaluation.
+            tolerance: float. Dominance score below which rules are pruned.
+            alpha: float. Weight of the compactness penalty (see ``BaseFuzzyRulesClassifier.reparametrize_loss``).
+            beta: float. Weight of the class-coverage penalty.
+            pareto: if True, two objectives for a Pareto search, as in ``FitRuleBase``.
         """
         try:
             self.var_names = list(X.columns)
@@ -86,6 +91,9 @@ class ExploreRuleBases(Problem):
             self.var_names = [str(ix) for ix in range(X.shape[1])]
 
         self.tolerance = tolerance
+        self.alpha_ = alpha
+        self.beta_ = beta
+        self.pareto = pareto
         self.fuzzy_type = candidate_rules.fuzzy_type()
         self.y = y
         self.nCons = 1  # This is fixed to MISO rules.
@@ -102,6 +110,9 @@ class ExploreRuleBases(Problem):
         self.max_bounds = np.max(self.X, axis=0)
 
         nTotalRules = len(self.candidate_rules.get_rules())
+        longest = max((int(np.sum(np.asarray(rule.antecedents) != -1))
+                       for rule in self.candidate_rules.get_rules()), default=1)
+        self._max_conditions = self.nRules * max(longest, 1)
         # Each gene position selects one rule from the candidate pool
         vars = {ix: Integer(bounds=[0, nTotalRules - 1]) for ix in range(self.nRules)}
         varbound = np.array([[0, nTotalRules- 1]] * self.nRules)
@@ -111,7 +122,7 @@ class ExploreRuleBases(Problem):
             super().__init__(
                 vars=vars,
                 n_var=nVar,
-                n_obj=1,
+                n_obj=2 if pareto else 1,
                 elementwise=True,
                 vtype=int,
                 xl=varbound[:, 0],
@@ -121,7 +132,7 @@ class ExploreRuleBases(Problem):
             super().__init__(
                 vars=vars,
                 n_var=nVar,
-                n_obj=1,
+                n_obj=2 if pareto else 1,
                 elementwise=True,
                 vtype=int,
                 xl=varbound[:, 0],
@@ -175,10 +186,14 @@ class ExploreRuleBases(Problem):
         """
         ruleBase = self._construct_ruleBase(x, self.fuzzy_type)
         score = self.fitness_func(
-            ruleBase, self.X, self.y, self.tolerance,
+            ruleBase, self.X, self.y, self.tolerance, self.alpha_, self.beta_,
             precomputed_truth=self._precomputed_truth
         )
-        out["F"] = 1 - score
+        if self.pareto:
+            accuracy, compactness = score
+            out["F"] = np.array([1 - accuracy, compactness])
+        else:
+            out["F"] = 1 - score
     
     
     def fitness_func(self, ruleBase: rules.RuleBase, X:np.array, y:np.array, 
@@ -186,31 +201,25 @@ class ExploreRuleBases(Problem):
                     precomputed_truth=None) -> float:
         """
         Compute fitness for a rule base.
-        
-        Fitness is computed as a weighted combination of:
-        - Classification accuracy
-        - Rule size complexity (optional, controlled by alpha)
-        - Number of rules (optional, controlled by beta)
+
+        The same objective as the main genetic search: the macro F1 of the
+        pruned rule base minus the class-coverage and compactness penalties
+        (see ``BaseFuzzyRulesClassifier.reparametrize_loss``).
 
         Args:
             ruleBase: RuleBase object to evaluate
             X: Training samples (n_samples, n_features)
             y: Training labels (n_samples,)
-            tolerance: Tolerance for size evaluation
-            alpha: Weight for rule size complexity penalty (default: 0.0)
-            beta: Weight for number of rules penalty (default: 0.0)
+            tolerance: Dominance score below which rules are pruned
+            alpha: Weight of the compactness penalty (default: 0.0)
+            beta: Weight of the class-coverage penalty (default: 0.0)
             precomputed_truth: Precomputed membership values (optional)
 
         Returns:
             Fitness score (higher is better)
         """
-        ev_object = evr.evalRuleBase(ruleBase, X, y, precomputed_truth=precomputed_truth)
-        ev_object.add_rule_weights()
-
-        score_acc = ev_object.classification_eval()
-        score_rules_size = ev_object.size_antecedents_eval(tolerance)
-        score_nrules = ev_object.effective_rulesize_eval(tolerance)
-
-        score = score_acc + score_rules_size * alpha + score_nrules * beta
-
-        return score
+        exact = (np.asarray(y).dtype.kind in 'biuf'
+                 and self.fuzzy_type in (fs.FUZZY_SETS.t1, fs.FUZZY_SETS.t2))
+        score = score_rulebase if exact else score_rulebase_objects
+        return score(ruleBase, X, y, tolerance, alpha, beta, precomputed_truth,
+                     max_conditions=self._max_conditions, pareto=self.pareto)

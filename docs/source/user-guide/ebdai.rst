@@ -4,7 +4,7 @@ ebdai
 
 ``import ebdai`` is the BDI expansion package (pip version 1.0.1). It does
 not replace ``import ex_fuzzy``. The fuzzy rule learner stays in ``ex_fuzzy``
-(currently 3.2.0). New explainable-by-design tools, starting with **bias in
+(currently 3.3.0). New explainable-by-design tools, starting with **bias in
 the data and in inference**, live under ``ebdai``.
 
 .. code-block:: python
@@ -14,7 +14,7 @@ the data and in inference**, live under ``ebdai``.
 
     print(ebdai.__version__)   # 1.0.1
     import ex_fuzzy
-    print(ex_fuzzy.__version__)  # 3.2.0
+    print(ex_fuzzy.__version__)  # 3.3.0
 
 Two imports
 ===========

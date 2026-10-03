@@ -7,7 +7,7 @@ Ex-Fuzzy. Read [STATUS.md](STATUS.md) for versions, remotes, and recent work.
 
 Two import packages ship from one pip distribution (`ebdai` 1.0.1):
 
-- `ex_fuzzy/` — rebased Ex-Fuzzy API (`ex_fuzzy.__version__` is 3.2.0)
+- `ex_fuzzy/` — rebased Ex-Fuzzy API (`ex_fuzzy.__version__` is 3.3.0)
 - `ebdai/` — BDI expansions that accept `ex_fuzzy` objects (`ebdai.__version__`
   is 1.0.1). Do not re-export Ex-Fuzzy names from `ebdai`.
 
@@ -86,10 +86,17 @@ kernels in `rules.py`, read [SPEED_UP.md](performance/SPEED_UP.md) and
   `FitRuleBase._array_score` returns `None` for unsupported cases.
 - NumPy reduction layout and pairwise summation affect exactness. Compare new
   reductions with the reference across relevant types and array layouts.
+- The objective is the macro F1 of the pruned rule base minus the class-coverage
+  and compactness penalties. Every evaluator computes exact integer counts and
+  finishes with `_fitness._macro_f1` and `_fitness._penalized_objective`; keep
+  the float arithmetic in those two functions so the evaluators agree. With
+  `pareto=True` (`algorithm='nsga2'`) the scalar routes return
+  `(accuracy, compactness)`, and `accuracy - alpha * compactness` must equal the
+  scalar objective bit for bit. The batched population and PyTorch routes are
+  scalar-only, so Pareto problems use the scalar routes and the fitness cache.
 - The PyTorch objective reproduces NumPy's pairwise sums and left-to-right
-  products, and leaves non-integer MCC and penalty arithmetic to NumPy because
-  CPU `torch.sqrt` is not correctly rounded. Its runtime verification is a
-  safety net, not a substitute for parity tests.
+  products, and returns integer counts for NumPy to finish. Its runtime
+  verification is a safety net, not a substitute for parity tests.
 - Fit-local fitness/firing caches and packed memberships must remain bounded and
   scoped to a fit, with cleanup on success and failure. Do not make them global.
 - Respect fast-path eligibility and preserve logical evaluation counts even on

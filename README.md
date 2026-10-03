@@ -63,6 +63,7 @@ compose with it.
 This is the rebased Ex-Fuzzy stack, the first method family in the toolbox.
 
 - **Fuzzy association rules**: classification and regression with genetic fine-tuning.
+- **Genetic search**: maximizes macro F1, with small penalties for classes left without rules and for model size. `algorithm='nsga2'` searches that accuracy–size trade-off and keeps the Pareto front. The PyMoo backend honours `tournament_size` (default 3).
 - **FERL rule trees**: greedy fuzzy rule learning with native belief, plausibility, ignorance, and set-valued predictions.
 - **Complexity control**: number of rules, rule length, linguistic variables, with strong and soft constraints.
 - **Statistical analysis**: confidence intervals for rule quality, repeated fits for robustness.

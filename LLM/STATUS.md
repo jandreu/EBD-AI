@@ -1,27 +1,26 @@
 # Agent handoff
 
-Last updated 2026-09-17. Check the working tree and `git log` before treating
+Last updated 2026-10-03. Check the working tree and `git log` before treating
 this as current.
 
 ## What this repository is
 
 [HAISymbiosis/EBD-AI](https://github.com/HAISymbiosis/EBD-AI) is an
 **independent** public copy of [Fuminides/ex-fuzzy](https://github.com/Fuminides/ex-fuzzy),
-not a GitHub-linked fork. Product name: **BDI: The Explainable By Design AI
-Toolbox**. Author: Prof. Javier Andreu-Perez. It is a rebase of Ex-Fuzzy;
-acknowledge that in user-facing text.
+not a GitHub-linked fork. Product name in the README: **EBD Toolbox**.
+Author: Prof. Javier Andreu-Perez. It is a rebase of Ex-Fuzzy; acknowledge
+that in user-facing text. Older docs and comments may still say BDI.
 
-Remote `upstream` (if configured) points at `Fuminides/ex-fuzzy`. Fetch and
-cherry-pick or re-implement. Do not `git merge upstream/main` and do not
-convert this repo into a GitHub fork. Skip upstream README/LLM/agent files.
-If a change touches `FitRuleBase`, `_fitness.py`, `_array_fitness.py`, or
-firing kernels, keep objective values bit-for-bit.
+Remote `upstream` (if configured) points at `Fuminides/ex-fuzzy`. Bring
+library updates across, but do not take upstream's README, package name, or
+agent notes, and do not convert this repo into a GitHub fork. If a change
+touches `FitRuleBase`, `_fitness.py`, `_array_fitness.py`, or firing kernels,
+the evaluators must still agree with each other bit for bit.
 
-As of 2026-09-22, `upstream/main` is `05fea6e` (dropped the temporal demo
-notebook and occupancy dataset). That change is ported. The temporal library
-code in `ex_fuzzy/temporal.py` stays. Do not merge `fix/python39-pymoo-install`
-(Python 3.9) or `gh-pages` into `main`. Every other origin feature branch is
-already contained in `main`.
+As of 2026-10-03, `upstream/main` is `93bb437` (Ex-Fuzzy 3.3.0: macro F1
+objective, honoured `tournament_size`, `algorithm='nsga2'`). That is merged
+into `main`. The temporal library code in `ex_fuzzy/temporal.py` stays. Do
+not merge `fix/python39-pymoo-install` (Python 3.9) or `gh-pages` into `main`.
 
 ## Two packages, two versions
 
@@ -30,7 +29,7 @@ already contained in `main`.
 | Import | Path | Version | Role |
 | --- | --- | --- | --- |
 | `ebdai` | `ebdai/` | **1.0.1** (`ebdai/_version.py`, pip metadata) | BDI expansions |
-| `ex_fuzzy` | `ex_fuzzy/` | **3.2.0** (`ex_fuzzy/_version.py`) | Rebased Ex-Fuzzy API |
+| `ex_fuzzy` | `ex_fuzzy/` | **3.3.0** (`ex_fuzzy/_version.py`) | Rebased Ex-Fuzzy API |
 
 Do **not** re-export Ex-Fuzzy names from `ebdai`. Classes and enums must exist
 once per process. Register new `ebdai` modules in `ebdai/__init__.py`
@@ -40,7 +39,7 @@ once per process. Register new `ebdai` modules in `ebdai/__init__.py`
 
 Workshop source:
 [rferper/WorkshopIgualdad2025](https://github.com/rferper/WorkshopIgualdad2025)
-(Ex-Fuzzy 2.1.3 notebooks). Ported to current `ex_fuzzy` 3.2.0.
+(Ex-Fuzzy 2.1.3 notebooks). Ported to current `ex_fuzzy` 3.3.0.
 
 - Library: `ebdai/bias.py`, `ebdai/datasets.py`, CSVs in `ebdai/data/`
 - Public names: `outcome_rates_by_group`, `fairness_report`,
