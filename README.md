@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/source/_static/logo.png" width="200" height="200" alt="BDI logo">
+  <img src="docs/source/_static/logo.png" width="200" height="200" alt="EBD Toolbox logo">
 </p>
 
-<h1 align="center">BDI: The Explainable By Design AI Toolbox</h1>
+<h1 align="center">EBD Toolbox</h1>
 
 <p align="center">
   <i>A Python toolbox for explainable-by-design machine learning</i>
@@ -30,7 +30,7 @@
 
 ## Overview
 
-**BDI** is a Python toolbox for **explainable-by-design** machine learning:
+**EBD Toolbox** is a Python toolbox for **explainable-by-design** machine learning:
 models whose decisions are interpretable by construction, not explained after
 the fact by a separate method.
 
@@ -43,7 +43,7 @@ The first shipped family is fuzzy rule learning, via a rebase of
 API. `import ebdai` is the home for further explainable-by-design methods that
 compose with it.
 
-### Why BDI?
+### Why EBD Toolbox?
 
 - Explainable by design: the model is the explanation (rules, sets, prototypes, constraints), not a post-hoc saliency map.
 - Broader than fuzzy logic: `ex_fuzzy` is the first method family; new EBD methods land in `ebdai`.
@@ -225,7 +225,7 @@ Obtain statistical confidence intervals for your metrics:
 
 ### Accuracy and model size on 67 KEEL datasets
 
-![Test accuracy, rules per model and training time for BDI's Genetic Search Rules, Mine+Search and FERL learners against logistic regression, decision tree, random forest and gradient boosting baselines on 67 KEEL classification datasets](docs/performance/keel.svg)
+![Test accuracy, rules per model and training time for EBD Toolbox's Genetic Search Rules, Mine+Search and FERL learners against logistic regression, decision tree, random forest and gradient boosting baselines on 67 KEEL classification datasets](docs/performance/keel.svg)
 
 ### Training speed in the ex-fuzzy lineage (2.0 vs 3.0)
 
@@ -299,7 +299,7 @@ print(outcome_rates_by_group(y, X[sensitive]))
 ```
 
 #### Real Applications
-  - BDI in fNIRS data: https://github.com/jjcato9/ex_fuzzy_fnirs_demo
+  - EBD Toolbox in fNIRS data: https://github.com/jjcato9/ex_fuzzy_fnirs_demo
 ### Code Examples
 
 <details>
@@ -437,12 +437,12 @@ pytest tests/test_fuzzy_sets_comprehensive.py -v
 
 This project is licensed under the **AGPL v3 License** - see the [LICENSE](LICENSE) file for details.
 
-Copyright for this rebase and BDI branding: **Prof. Javier Andreu-Perez**.
+Copyright for this rebase and EBD Toolbox branding: **Prof. Javier Andreu-Perez**.
 The codebase is a rebase of [Ex-Fuzzy](https://github.com/Fuminides/ex-fuzzy); original copyright of that project remains with its authors.
 
 ## Citation
 
-If you use BDI’s fuzzy rule learners in your research, please cite the original Ex-Fuzzy paper that this toolbox rebases:
+If you use EBD Toolbox’s fuzzy rule learners in your research, please cite the original Ex-Fuzzy paper that this toolbox rebases:
 
 ```bibtex
 @article{fumanalex2024,
@@ -463,14 +463,14 @@ If you use BDI’s fuzzy rule learners in your research, please cite the origina
 
 ## Acknowledgments
 
-BDI is an explainable-by-design toolbox. Its first method family is a rebase of **[Ex-Fuzzy](https://github.com/Fuminides/ex-fuzzy)** by Javier Fumanal-Idocin and Javier Andreu-Perez.
+EBD Toolbox is an explainable-by-design toolbox. Its first method family is a rebase of **[Ex-Fuzzy](https://github.com/Fuminides/ex-fuzzy)** by Javier Fumanal-Idocin and Javier Andreu-Perez.
 
 - Special thanks to all [Ex-Fuzzy contributors](https://github.com/Fuminides/ex-fuzzy/graphs/contributors)
 - This research has been supported by EU Horizon Europe under the Marie Skłodowska-Curie COFUND grant No 101081327 YUFE4Postdocs.
 ---
 
 <p align="center">
-  <b>Star us on GitHub if you find BDI useful!</b><br>
+  <b>Star us on GitHub if you find EBD Toolbox useful!</b><br>
   <a href="https://github.com/HAISymbiosis/EBD-AI/stargazers">
     <img src="https://img.shields.io/github/stars/HAISymbiosis/EBD-AI?style=social" alt="GitHub Stars">
   </a>
