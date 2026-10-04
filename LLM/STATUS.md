@@ -72,6 +72,10 @@ with `/api/train`). `site/fuzzy.js` ports ex-fuzzy's Type-1 inference
 If inference semantics change, rebuild the models and keep
 `tests/test_fuzzy_classroom.py` passing; its JS parity test needs `node` on PATH
 and skips otherwise. The page also reports parity live in its header badge.
+`serve.py` trains in a spawn-context process pool (workers = cores - 1,
+admission limit max(64, 4 x workers), 503 when full, 504 after `--timeout`,
+SIGTERM stops the workers); the server and page keep no state between visitors.
+`load_check.py` simulates a class against a running server.
 
 ## Environment
 
