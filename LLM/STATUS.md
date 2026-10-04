@@ -63,6 +63,16 @@ Workshop source:
 Verified in the `developer` mamba env: unit tests passed; all three notebooks
 ran with `python Demos/run_notebooks.py`.
 
+## Fuzzy Classroom teaching site (on `main`)
+
+`Demos/fuzzy_classroom/`: static teaching website plus `build_models.py`
+(exports fitted models to `site/models/*.js`) and `serve.py` (stdlib server
+with `/api/train`). `site/fuzzy.js` ports ex-fuzzy's Type-1 inference
+(clipping, trapezoid epsilon, product t-norm, `ds_mode` 0/1, first-max winner).
+If inference semantics change, rebuild the models and keep
+`tests/test_fuzzy_classroom.py` passing; its JS parity test needs `node` on PATH
+and skips otherwise. The page also reports parity live in its header badge.
+
 ## Environment
 
 Install libraries in the **mamba env `developer`**

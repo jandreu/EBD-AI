@@ -39,6 +39,11 @@ Open them from GitHub:
 - [10 Bias in heart-failure labels](https://colab.research.google.com/github/HAISymbiosis/EBD-AI/blob/main/Demos/10_bias_heart_failure.ipynb)
 - [11 Bias in inference and mitigation (loans)](https://colab.research.google.com/github/HAISymbiosis/EBD-AI/blob/main/Demos/11_bias_loan_fairness.ipynb)
 
+[`fuzzy_classroom/`](fuzzy_classroom/README.md) is an interactive teaching website: pick a
+Palmer penguin or an iris and watch fuzzification, rule firing, dominance weighting, aggregation
+and the winning rule step by step, switch rules off, and retrain with ex-fuzzy. Open
+`fuzzy_classroom/site/index.html`, or run `python Demos/fuzzy_classroom/serve.py` to enable retraining.
+
 `evox_backend_demo.py` compares the PyMoo and EvoX backends and reports
 whether EvoX and CUDA are available; run it as `python Demos/evox_backend_demo.py`.
 
