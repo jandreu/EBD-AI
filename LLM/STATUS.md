@@ -1,6 +1,6 @@
 # Agent handoff
 
-Last updated 2026-10-03. Check the working tree and `git log` before treating
+Last updated 2026-10-07. Check the working tree and `git log` before treating
 this as current.
 
 ## What this repository is
@@ -67,8 +67,18 @@ ran with `python Demos/run_notebooks.py`.
 
 `Demos/fuzzy_classroom/`: static teaching website plus `build_models.py`
 (exports fitted models to `site/models/*.js`) and `serve.py` (stdlib server
-with `/api/train`). `site/fuzzy.js` ports ex-fuzzy's Type-1 inference
-(clipping, trapezoid epsilon, product t-norm, `ds_mode` 0/1, first-max winner).
+with `/api/train`). Datasets: penguins (default), iris, football positions
+(FIFA 22, 2,650 players, 7 classes; `data/make_football_csv.py`) and breast
+cancer. Each dataset can
+override `DEFAULT_SETTINGS` in `DATASET_SETTINGS` (football: 20 rules, 3 ants,
+300 gens, pop 100, seed 12, `tolerance=0.01`; cancer: 2 ants, seed 8). Breast
+cancer (UCI Wisconsin Original, `data/make_cancer_csv.py`) sets `'scale': [1, 10]`
+in its loader: its sets are built from an evenly spaced grid, not data
+quantiles, because most scores are 1. Retraining accepts `n_partitions`
+2-5, `shape` trapezoid/triangular/gaussian (triangular needs 3 sets) and
+`tolerance`. `site/fuzzy.js` ports ex-fuzzy's Type-1 inference (clipping,
+trapezoid epsilon, Gaussian `exp(-z*z)`, product t-norm, `ds_mode` 0/1, first-max
+winner).
 If inference semantics change, rebuild the models and keep
 `tests/test_fuzzy_classroom.py` passing; its JS parity test needs `node` on PATH
 and skips otherwise. The page also reports parity live in its header badge.
@@ -80,9 +90,12 @@ SIGTERM stops the workers); the server and page keep no state between visitors.
 ## Environment
 
 Install libraries in the **mamba env `developer`**
-(`/home/ubuntu/miniforge3/envs/developer`): Python 3.12, numpy, pandas,
-scikit-learn, matplotlib, pymoo, pytest, editable `ebdai`. GitHub CLI `gh`
-is in that env; login is **jandreu**.
+(`/home/ubuntu/miniforge3/envs/developer`). As of 2026-10-07 it holds
+Python 3.13, numpy, pandas, scikit-learn, matplotlib, pymoo, pytest and an
+editable `ebdai`, plus Node.js (so the JS parity tests in
+`tests/test_fuzzy_classroom.py` run) and Playwright with headless Chromium (for
+checking the classroom page in a browser). `gh` (GitHub login **jandreu**)
+is not installed on the host at present.
 
 ```bash
 conda activate developer
