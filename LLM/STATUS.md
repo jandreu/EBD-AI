@@ -87,6 +87,26 @@ admission limit max(64, 4 x workers), 503 when full, 504 after `--timeout`,
 SIGTERM stops the workers); the server and page keep no state between visitors.
 `load_check.py` simulates a class against a running server.
 
+### Public site (since 2026-10-07)
+
+The development host serves this checkout's Fuzzy Classroom as the homepage of
+https://human-centred.ai (`www` redirects to it). The server configuration is
+outside the repository and, by the user's choice, not versioned:
+
+- systemd units run `serve.py` on localhost with the `developer` env's Python
+  (`fuzzy-classroom` on port 8000; their worker counts and CPU pinning are server
+  configuration).
+- Caddy (`/etc/caddy/Caddyfile`) terminates HTTPS (Let's Encrypt, automatic
+  renewal) and reverse-proxies to it. Keep `serve.py` on localhost; it has no
+  TLS or authentication of its own.
+- Visitors can retrain (`/api/train`), bounded by the worker pool and admission
+  limit. To disable it, add `respond /api/train 403` to the Caddyfile.
+
+Consequences for agents working here: edits under `site/` are live as soon as
+they are saved; changes to `serve.py`, `build_models.py` or `ex_fuzzy` need
+`sudo systemctl restart fuzzy-classroom`; switching branches changes the live
+site. Logs: `journalctl -u fuzzy-classroom` and `journalctl -u caddy`.
+
 ## Environment
 
 Install libraries in the **mamba env `developer`**
@@ -94,7 +114,8 @@ Install libraries in the **mamba env `developer`**
 Python 3.13, numpy, pandas, scikit-learn, matplotlib, pymoo, pytest and an
 editable `ebdai`, plus Node.js (so the JS parity tests in
 `tests/test_fuzzy_classroom.py` run) and Playwright with headless Chromium (for
-checking the classroom page in a browser). `gh` (GitHub login **jandreu**)
+checking the classroom page in a browser). The live site runs from it, so test
+changes to it before restarting the service. `gh` (GitHub login **jandreu**)
 is not installed on the host at present.
 
 ```bash
