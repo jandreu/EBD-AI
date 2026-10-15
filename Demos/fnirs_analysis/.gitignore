@@ -1,0 +1,9 @@
+# Built page (npm run build in frontend/) and Node packages
+site/
+frontend/node_modules/
+frontend/.env
+# Runtime and private files
+interactions.db
+*.pkl
+secrets.toml
+.streamlit/

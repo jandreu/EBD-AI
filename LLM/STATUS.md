@@ -1,6 +1,6 @@
 # Agent handoff
 
-Last updated 2026-10-07. Check the working tree and `git log` before treating
+Last updated 2026-10-15. Check the working tree and `git log` before treating
 this as current.
 
 ## What this repository is
@@ -89,7 +89,10 @@ SIGTERM stops the workers); the server and page keep no state between visitors.
 
 ### Public site (since 2026-10-07)
 
-The development host serves this checkout's Fuzzy Classroom as the homepage of
+Since 2026-10-15 the homepage of https://human-centred.ai is the fNIRS analysis
+demo (below), not the classroom; the classroom units are stopped and disabled,
+and the notes in this section describe how to bring them back. The development
+host served this checkout's Fuzzy Classroom as the homepage of
 https://human-centred.ai (`www` redirects to it). The server configuration is
 outside the repository and, by the user's choice, not versioned:
 
@@ -106,6 +109,30 @@ Consequences for agents working here: edits under `site/` are live as soon as
 they are saved; changes to `serve.py`, `build_models.py` or `ex_fuzzy` need
 `sudo systemctl restart fuzzy-classroom`; switching branches changes the live
 site. Logs: `journalctl -u fuzzy-classroom` and `journalctl -u caddy`.
+
+## fNIRS analysis demo (since 2026-10-15)
+
+`Demos/fnirs_analysis/`: the "fNIRS Fuzzy Rule Explainer" from
+[arkabite/Dissertation](https://github.com/arkabite/Dissertation) (FastAPI
+backend, React/Vite page), imported with its
+legacy commented-out code removed, file paths moved to `data/`, the API under
+`/api`, the built page served by `backend.py` from `site/` (gitignored; build
+with `npm ci && npm run build` in `frontend/`), and `MainFold.py` ported to
+`train_model.py` on this toolbox. The shipped rules are the dissertation's own
+(Ex-Fuzzy 2.1.5); the toolbox rerun is reported in the demo README, not shipped,
+because `regression_test.py` checks facts about those rules. Written answers
+come from the Claude Code CLI logged in on the server (`claude_cli.py`: `claude -p`
+with no tools, MCP servers, plugins, hooks or saved sessions; text protocol for
+the visualisation tool calls), replacing the original Ollama Cloud client; visitors
+whose gate role (`X-Gate-Role`) is not admin get the Venice API instead
+(`venice_client.py`, same interface); without a model the answers are rule lists. Answers also get passages from 16 open-access
+(CC BY) n-back/fNIRS papers in `data/papers.json` (built by `build_paper_corpus.py`
+from Europe PMC; BM25 search in `paper_search.py`), cited and listed under
+"Background reading"; citations of papers not given are caught as before. Needs `fastapi uvicorn` (and `httpx` for the
+tests) beside the toolbox; the `developer` env has them. Tests: `tests/test_fnirs_analysis.py`. On the public
+host it runs as the `fnirs-demo` unit on localhost:8010 behind the same Caddy
+password gate; its settings (`CLAUDE_MODEL`, `CLAUDE_MAX_PARALLEL`, ...) are in
+that unit's environment file outside the repository.
 
 ## Environment
 

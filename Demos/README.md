@@ -44,6 +44,13 @@ Palmer penguin, an iris, a football player or a breast cancer sample and watch f
 and the winning rule step by step, switch rules off, and retrain with ex-fuzzy. Open
 `fuzzy_classroom/site/index.html`, or run `python Demos/fuzzy_classroom/serve.py` to enable retraining.
 
+[`fnirs_analysis/`](fnirs_analysis/README.md) is a web app that explains a fuzzy
+rule classifier trained on fNIRS brain recordings from an n-back memory task: ask
+about the rules in plain English and see the channels on a scalp map, a 3D brain
+and a connectivity diagram. It comes from the
+[arkabite/Dissertation](https://github.com/arkabite/Dissertation) project; run
+`python Demos/fnirs_analysis/backend.py` after building its page (see its README).
+
 ## Run the EBD Classroom on your own computer
 
 The classroom in [`fuzzy_classroom/`](fuzzy_classroom/README.md) runs on any
