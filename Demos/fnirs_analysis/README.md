@@ -68,10 +68,26 @@ browser ◀── site/ (React build of frontend/) ◀── backend.py (FastAPI
   explains the brain signals with them and cites them as (Author et al., year);
   a citation of any paper it was not given is caught, and the answer rewritten
   once or flagged. The papers appear under "Background reading" below the
-  answer. For questions about the model they are explicitly general
-  background, never findings of this model.
+  answer. When asked about a rule, the model explains its pattern (what its
+  signals, levels and regions may reflect, and why a pattern may run against
+  the usual direction) from the papers where they apply and from its own
+  knowledge otherwise, without labelling sentences as background; the rules
+  and numbers themselves still come only from the model.
+- **Your data** (`workspace.py`): a "Your data" toggle beside the page title
+  opens a small panel where a visitor can upload their own rule base, write
+  notes about their experiment and upload reference documents. A rule base is
+  the text Ex-Fuzzy prints (`print(model.rule_base)`, `print_rules`, the
+  `persistence` format: "Rules for consequent: …" headers and "IF … IS … WITH
+  DS …, ACC …" lines) or JSON in this demo's format; the rules, maps and answers
+  then use it. Notes go into the model's background; references (PDF, text or
+  Markdown, up to 8) are split into passages and searched first, before the
+  built-in papers. Each browser tab gets its own workspace on the server,
+  in memory only: nobody else sees it, and it expires after 3 hours without use
+  or when the server restarts.
 - **Pictures** (`viz_tools.py`): the plotted points always come from the rules
-  and the channel atlas, never from the language model.
+  and the channel atlas, never from the language model. An uploaded rule base
+  is drawn on the maps when its variables use this study's channel names
+  (`tmb_s1_ch…` for HbO, `tmb_s2_ch…` for HbR).
 
 ## Run it
 
@@ -81,7 +97,7 @@ From the repository root, in an environment with the toolbox installed
 logged in (`claude auth status`) for the user that runs the server:
 
 ```bash
-pip install fastapi uvicorn
+pip install fastapi uvicorn pypdf   # pypdf reads uploaded PDF references
 cd Demos/fnirs_analysis/frontend && npm ci && npm run build && cd -   # Node.js 18+; writes Demos/fnirs_analysis/site/
 python Demos/fnirs_analysis/backend.py                                # http://127.0.0.1:8000/
 ```
@@ -155,6 +171,7 @@ python Demos/fnirs_analysis/regression_test.py   # offline, no key needed; also 
 | `claude_cli.py` | Locked-down `claude -p` calls behind the chat interface `rag_core.py` uses |
 | `venice_client.py` | The same chat interface over the Venice API |
 | `paper_search.py` | BM25 search over the background papers' passages |
+| `workspace.py` | Visitors' uploaded rule bases, notes and references (parsing, limits, per-tab store) |
 | `build_paper_corpus.py` | Downloads the open-access papers and writes `data/papers.json` |
 | `rag_core.py` | Retrieval, scope check, prompts, consistency check, fallback answers |
 | `viz_tools.py` | Topomap, chord and neighbour data from rules and atlas |

@@ -1,25 +1,81 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import ChatPanel from "./components/ChatPanel.jsx";
-import { health, getRules, getAtlas, getOverviewTopomap, getOverviewChord, BackendError } from "./api.js";
+import WorkspaceMenu from "./components/WorkspaceMenu.jsx";
+import {
+  health,
+  getRules,
+  getAtlas,
+  getOverviewTopomap,
+  getOverviewChord,
+  getWorkspace,
+  setWorkspace,
+  BackendError,
+} from "./api.js";
+
+// The workspace id survives a reload of this tab, not a new tab.
+const STORAGE_KEY = "fnirs-workspace";
+function storedWorkspaceId() {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+function storeWorkspaceId(id) {
+  try {
+    if (id) sessionStorage.setItem(STORAGE_KEY, id);
+    else sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // storage unavailable: the workspace lasts until the page is reloaded
+  }
+}
+
+/** The rule data the sidebar draws, for the current workspace (or the study). */
+async function loadModel() {
+  const [data, overviewTopomap, overviewChord] = await Promise.all([
+    getRules(),
+    getOverviewTopomap(),
+    getOverviewChord(),
+  ]);
+  return { data, overviewTopomap, overviewChord };
+}
 
 export default function App() {
   const [state, setState] = useState({ status: "loading" });
+  const [workspace, setWorkspaceSummary] = useState(null);
+
+  const forgetWorkspace = useCallback(async () => {
+    setWorkspace(null);
+    storeWorkspaceId(null);
+    setWorkspaceSummary(null);
+    try {
+      const model = await loadModel();
+      setState((s) => ({ ...s, ...model }));
+    } catch {
+      // keep what is shown
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [h, data, atlas, overviewTopomap, overviewChord] = await Promise.all([
-          health(),
-          getRules(),
-          getAtlas(),
-          getOverviewTopomap(),
-          getOverviewChord(),
-        ]);
+        const savedId = storedWorkspaceId();
+        if (savedId) {
+          try {
+            setWorkspace(savedId);
+            const summary = await getWorkspace(savedId);
+            if (!cancelled) setWorkspaceSummary(summary);
+          } catch {
+            setWorkspace(null);
+            storeWorkspaceId(null);
+          }
+        }
+        const [h, atlas, model] = await Promise.all([health(), getAtlas(), loadModel()]);
         if (cancelled) return;
-        setState({ status: "ready", health: h, data, atlas, overviewTopomap, overviewChord });
+        setState({ status: "ready", health: h, atlas, ...model });
       } catch (err) {
         if (cancelled) return;
         const message =
@@ -36,10 +92,23 @@ export default function App() {
     };
   }, []);
 
+  const onWorkspaceChange = useCallback(async (summary, rulesChanged) => {
+    storeWorkspaceId(summary.id);
+    setWorkspaceSummary(summary);
+    if (rulesChanged) {
+      try {
+        const model = await loadModel();
+        setState((s) => ({ ...s, ...model }));
+      } catch (err) {
+        if (err instanceof BackendError && err.status === 404) forgetWorkspace();
+      }
+    }
+  }, [forgetWorkspace]);
+
   if (state.status === "loading") {
     return (
       <div className="main-panel">
-        <h1>fNIRS Fuzzy Rule Explainer</h1>
+        <h1>Explainable Pattern Analysis for fNIRS</h1>
         <p className="caption">Connecting to the backend...</p>
       </div>
     );
@@ -48,7 +117,7 @@ export default function App() {
   if (state.status === "error") {
     return (
       <div className="main-panel">
-        <h1>fNIRS Fuzzy Rule Explainer</h1>
+        <h1>Explainable Pattern Analysis for fNIRS</h1>
         <div className="error-banner">
           Can't reach the backend API.
           <br />
@@ -79,7 +148,16 @@ export default function App() {
             left work as usual.
           </div>
         )}
-        <ChatPanel atlas={state.atlas} />
+        <ChatPanel
+          atlas={state.atlas}
+          menu={
+            <WorkspaceMenu
+              workspace={workspace}
+              onChange={onWorkspaceChange}
+              onExpired={forgetWorkspace}
+            />
+          }
+        />
       </div>
     </div>
   );

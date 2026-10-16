@@ -88,12 +88,16 @@ export default function Message({
       {papers && papers.length > 0 && (
         <div className="citations-block">
           <div className="citations-label">Background reading</div>
-          <p className="caption">Open-access papers whose passages were given to the model for this answer.</p>
+          <p className="caption">Papers and your uploaded documents whose passages were given to the model for this answer.</p>
           {papers.map((c) => (
-            <p key={c.url} className="caption">
-              <a href={c.url} target="_blank" rel="noreferrer">
-                {c.citation}
-              </a>
+            <p key={c.url || c.citation} className="caption">
+              {c.url ? (
+                <a href={c.url} target="_blank" rel="noreferrer">
+                  {c.citation}
+                </a>
+              ) : (
+                c.citation
+              )}
             </p>
           ))}
         </div>

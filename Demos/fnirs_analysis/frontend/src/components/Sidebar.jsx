@@ -22,6 +22,9 @@ export default function Sidebar({ data, atlas, overviewTopomap, overviewChord })
       <p>
         <strong>{rules.length} rules</strong> over target <code>{targetName}</code>
       </p>
+      {data?.source && (
+        <p className="caption">Your uploaded rule base: {data.source}. Open "Your data" to go back to the study's rules.</p>
+      )}
 
       {cv && (
         <>

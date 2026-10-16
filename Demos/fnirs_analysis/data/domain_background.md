@@ -1,10 +1,9 @@
 # Domain background (from the project's research proposal literature review)
 
-This is general context from the dissertation's own literature review, kept
-separate from the fitted model's rules. It exists to help explain *why* this
-project looks the way it does and what fNIRS is, in plain terms. It must
-never be presented as something this specific classifier discovered, and it
-contains no claim about which channel does what in this model's own rules.
+This is context from the dissertation's own literature review. It explains
+what fNIRS is and why the project looks the way it does, and can be used to
+explain the patterns in the model's rules. Which channels the rules use comes
+only from the rules themselves.
 
 ## What fNIRS measures
 
@@ -56,16 +55,3 @@ for workload measurement. This establishes fNIRS as a workable input for
 workload-style classification *in general* — it does not specify which
 individual channel matters for *this* project's dataset or classifier, and
 should not be cited as if it did.
-
-## What this background deliberately does NOT contain
-
-- No per-channel neuroanatomical claims (e.g. no "this channel corresponds
-  to working memory" mapping). If asked why a specific channel like AF7 or
-  AF8 appears in a rule, the honest answer is that the fitted rule found a
-  statistical association in this dataset — not that the literature
-  predicted that specific channel in advance.
-- No information about which channels this particular classifier's rules
-  actually use — that only comes from the rules JSON.
-- No claim that resolves or explains the low cross-seed rule stability
-  reported separately — that is a property of this model's fitting
-  procedure, not something the background literature addresses.

@@ -128,7 +128,10 @@ whose gate role (`X-Gate-Role`) is not admin get the Venice API instead
 (`venice_client.py`, same interface); without a model the answers are rule lists. Answers also get passages from 16 open-access
 (CC BY) n-back/fNIRS papers in `data/papers.json` (built by `build_paper_corpus.py`
 from Europe PMC; BM25 search in `paper_search.py`), cited and listed under
-"Background reading"; citations of papers not given are caught as before. Needs `fastapi uvicorn` (and `httpx` for the
+"Background reading"; citations of papers not given are caught as before. A
+"Your data" toggle lets a visitor upload an Ex-Fuzzy rule base (printed text or
+JSON), notes and reference documents into an in-memory per-tab workspace
+(`workspace.py`, `X-Workspace` header); `pypdf` reads uploaded PDFs. Needs `fastapi uvicorn` (and `httpx` for the
 tests) beside the toolbox; the `developer` env has them. Tests: `tests/test_fnirs_analysis.py`. On the public
 host it runs as the `fnirs-demo` unit on localhost:8010 behind the same Caddy
 password gate; its settings (`CLAUDE_MODEL`, `CLAUDE_MAX_PARALLEL`, ...) are in

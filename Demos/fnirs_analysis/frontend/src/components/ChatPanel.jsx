@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import Message from "./Message.jsx";
 import { ask, BackendError } from "../api.js";
 
-export default function ChatPanel({ atlas }) {
+export default function ChatPanel({ atlas, menu }) {
   const [history, setHistory] = useState([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,10 @@ export default function ChatPanel({ atlas }) {
 
   return (
     <div className="main-panel">
-      <h1>fNIRS Fuzzy Rule Explainer</h1>
+      <div className="chat-header">
+        <h1>Explainable Pattern Analysis for fNIRS</h1>
+        {menu}
+      </div>
       <p className="subtitle">
         Ask about the fuzzy rules behind the classifier — answers are grounded in the
         extracted rule set, with the channels involved shown alongside.

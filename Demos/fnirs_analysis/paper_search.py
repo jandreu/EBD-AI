@@ -87,7 +87,10 @@ def tokens(text: str) -> list:
 class PaperIndex:
     """BM25 index over every passage of every paper."""
 
-    def __init__(self, papers: list, k1: float = 1.4, b: float = 0.75):
+    def __init__(self, papers: list, k1: float = 1.4, b: float = 0.75, background=None):
+        """`background`: another PaperIndex whose passages count towards the
+        word statistics (so a handful of uploaded documents is scored on the
+        same scale as the shipped papers) but are not searched."""
         self.papers = papers
         self.entries = []  # (paper, passage, term counts, length)
         for paper in papers:
@@ -96,11 +99,14 @@ class PaperIndex:
                 counts = Counter(tokens(passage["text"] + " " + paper.get("citation", "")))
                 self.entries.append((paper, passage, counts, sum(counts.values())))
         self.k1, self.b = k1, b
-        n = len(self.entries)
-        self.avg_len = sum(e[3] for e in self.entries) / n if n else 1.0
-        df = Counter()
+        self.df = Counter()
         for _, _, counts, _ in self.entries:
-            df.update(counts.keys())
+            self.df.update(counts.keys())
+        self.n, self.total_len = len(self.entries), sum(e[3] for e in self.entries)
+        n, df, total = self.n, self.df, self.total_len
+        if background is not None:
+            n, df, total = n + background.n, df + background.df, total + background.total_len
+        self.avg_len = total / n if n else 1.0
         self.idf = {t: math.log(1 + (n - d + 0.5) / (d + 0.5)) for t, d in df.items()}
 
     def score(self, query_terms: list, counts: Counter, length: int) -> float:
@@ -138,6 +144,24 @@ class PaperIndex:
         return hits
 
 
+class CombinedIndex:
+    """A visitor's uploaded documents searched first (up to `first_k`
+    passages), then the shipped papers fill the remaining places."""
+
+    def __init__(self, first: PaperIndex, rest):
+        self.first, self.rest = first, rest
+
+    def search(self, query: str, top_k: int = 4, first_k: int = 2, **kwargs) -> list:
+        hits = self.first.search(query, top_k=min(first_k, top_k), **kwargs)
+        if self.rest is not None:
+            for hit in self.rest.search(query, top_k=top_k, **kwargs):
+                if len(hits) >= top_k:
+                    break
+                if all(hit["text"] != h["text"] for h in hits):
+                    hits.append(hit)
+        return hits
+
+
 def load_index(path: Path = PAPERS_PATH):
     """The index over data/papers.json, or None when the file is missing."""
     try:
@@ -154,8 +178,8 @@ def sources_from_hits(hits: list) -> list:
         if hit["paper_id"] in seen:
             continue
         seen.add(hit["paper_id"])
-        out.append({"citation": hit["citation"], "url": hit["url"], "summary": "",
-                    "vetted": True, "source": "papers"})
+        out.append({"citation": hit["citation"], "url": hit["url"], "summary": "", "vetted": True,
+                    "source": "upload" if hit["paper_id"].startswith("upload-") else "papers"})
     return out
 
 

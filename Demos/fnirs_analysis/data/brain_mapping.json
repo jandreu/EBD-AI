@@ -10,12 +10,12 @@
     "s1": {
       "label": "Oxygenated hemoglobin (HbO)",
       "confidence": "sourced",
-      "task_load_direction": "In this project's data, HbO typically INCREASES with higher n-back task load (per MainFold.py, matching the source paper's Fig. 3)."
+      "task_load_direction": "In this project's data, HbO typically INCREASES with higher n-back task load (as in the source dataset paper, Shin et al., 2018)."
     },
     "s2": {
       "label": "Deoxygenated hemoglobin (HbR)",
       "confidence": "sourced",
-      "task_load_direction": "In this project's data, HbR typically DECREASES with higher n-back task load (per MainFold.py, matching the source paper's Fig. 3) - classic neurovascular coupling with HbO."
+      "task_load_direction": "In this project's data, HbR typically DECREASES with higher n-back task load (as in the source dataset paper, Shin et al., 2018) - classic neurovascular coupling with HbO."
     }
   },
   "hemisphere_convention": {
@@ -28,77 +28,77 @@
     "AF": {
       "location": "Anterior-frontal scalp region (standard 10-10 naming)",
       "short": "AF, frontal",
-      "general_association": "Anterior-frontal/prefrontal regions are broadly discussed in the literature in connection with executive function and attention - general background only.",
+      "general_association": "Anterior-frontal/prefrontal regions are broadly discussed in the literature in connection with executive function and attention.",
       "functional_region": "frontal",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "AFF": {
       "location": "Anterior-frontal scalp region, between AF and F sites (standard 10-10 naming)",
       "short": "AFF, frontal",
-      "general_association": "Same general frontal-region literature as AF - general background only.",
+      "general_association": "Same general frontal-region literature as AF.",
       "functional_region": "frontal",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "AFp": {
       "location": "Frontopolar scalp region, the most forward frontal sites (standard 10-10 naming)",
       "short": "AFp, frontal",
-      "general_association": "Frontopolar regions are broadly discussed in connection with higher-order planning and multitasking in the literature - general background only.",
+      "general_association": "Frontopolar regions are broadly discussed in connection with higher-order planning and multitasking in the literature.",
       "functional_region": "frontal",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "C": {
       "location": "Central scalp region, over sensorimotor cortex (standard 10-10 naming)",
       "short": "C, motor",
-      "general_association": "Central regions are broadly discussed in connection with motor control/planning in the literature - general background only.",
+      "general_association": "Central regions are broadly discussed in connection with motor control/planning in the literature.",
       "functional_region": "motor",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "FCC": {
       "location": "Fronto-central scalp region, between frontal and central sites (standard 10-10 naming)",
       "short": "FCC, motor",
-      "general_association": "Fronto-central regions are broadly discussed in connection with motor preparation in the literature - general background only.",
+      "general_association": "Fronto-central regions are broadly discussed in connection with motor preparation in the literature.",
       "functional_region": "motor",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "CCP": {
       "location": "Centro-parietal scalp region, between central and parietal sites (standard 10-10 naming)",
       "short": "CCP, motor",
-      "general_association": "Centro-parietal regions are broadly discussed in connection with sensorimotor integration in the literature - general background only.",
+      "general_association": "Centro-parietal regions are broadly discussed in connection with sensorimotor integration in the literature.",
       "functional_region": "motor",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "CPP": {
       "location": "Centro-parietal scalp region (standard 10-10 naming)",
       "short": "CPP, parietal",
-      "general_association": "Same general sensorimotor-integration literature as CCP - general background only.",
+      "general_association": "Same general sensorimotor-integration literature as CCP.",
       "functional_region": "parietal",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "P": {
       "location": "Parietal scalp region (standard 10-10 naming)",
       "short": "P, parietal",
-      "general_association": "Parietal regions are broadly discussed in connection with spatial and sensory integration in the literature - general background only.",
+      "general_association": "Parietal regions are broadly discussed in connection with spatial and sensory integration in the literature.",
       "functional_region": "parietal",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "PPO": {
       "location": "Parieto-occipital scalp region, between parietal and occipital sites (standard 10-10 naming)",
       "short": "PPO, parietal/occipital boundary-ambiguous",
-      "general_association": "Parieto-occipital regions are broadly discussed in connection with visual-spatial processing in the literature - general background only.",
+      "general_association": "Parieto-occipital regions are broadly discussed in connection with visual-spatial processing in the literature.",
       "functional_region": "AMBIGUOUS - PPOz clusters near occipital POz; PPO3/PPO4 cluster near parietal P3/P4. Do not assert a single region for 'PPO' codes without the exact suffix.",
       "functional_region_basis": "ambiguous - see note"
     },
     "PO": {
       "location": "Parieto-occipital scalp region (standard 10-10 naming)",
       "short": "PO, occipital",
-      "general_association": "Same general visual-spatial-processing literature as PPO - general background only.",
+      "general_association": "Same general visual-spatial-processing literature as PPO.",
       "functional_region": "occipital",
       "functional_region_basis": "sourced (dataset methods)"
     },
     "POO": {
       "location": "Occipital scalp region, near visual cortex (standard 10-10 naming)",
       "short": "POO, occipital",
-      "general_association": "Occipital regions are broadly discussed in connection with visual processing in the literature - general background only.",
+      "general_association": "Occipital regions are broadly discussed in connection with visual processing in the literature.",
       "functional_region": "occipital",
       "functional_region_basis": "sourced (dataset methods)"
     }

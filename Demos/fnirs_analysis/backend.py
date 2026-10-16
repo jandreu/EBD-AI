@@ -52,14 +52,20 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from rag_core import (
     RULES_PATH, CLOUD_MODEL,
     load_rules, load_domain_background, load_brain_mapping, get_client, get_venice_client,
+    get_paper_index,
     retrieve_rules, build_prompt, build_stability_lookup,
     is_in_scope, classify_scope, build_fallback_answer,
     ask_with_visualization, ask_general_neuro, describe_issue,
+)
+from workspace import (
+    MAX_CONTEXT, MAX_REFERENCE_FILE, MAX_RULE_FILE, UploadError, WorkspaceStore,
+    extract_reference, parse_rule_base,
 )
 from viz_tools import (
     load_channel_atlas, resolve_requested_channels,
@@ -201,6 +207,7 @@ async def lifespan(app: FastAPI):
     except RuntimeError as e:
         state["venice_client"] = None
         state["venice_error"] = str(e)
+    state["workspaces"] = WorkspaceStore(get_paper_index())
     state["db_ok"] = init_db()
     yield
     state.clear()
@@ -353,6 +360,7 @@ class AskResponse(BaseModel):
 
 
 class RulesResponse(BaseModel):
+    source: Optional[str] = None  # file name of an uploaded rule base
     target_name: str
     n_rules: int
     rules: list[RuleOut]
@@ -363,6 +371,126 @@ class RulesResponse(BaseModel):
 # ---------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Visitors' own material (workspace.py): one workspace per browser tab, named
+# by the X-Workspace header. Without one, the shipped study is used.
+# ---------------------------------------------------------
+def workspace_for(request: Request):
+    """The visitor's workspace, None when they have none; 404 when the
+    header names one that expired or was lost in a restart."""
+    workspace_id = request.headers.get("x-workspace", "")
+    if not workspace_id:
+        return None
+    workspace = state["workspaces"].get(workspace_id)
+    if workspace is None:
+        raise HTTPException(404, "Your uploads have expired. They were reset to the original study.")
+    return workspace
+
+
+def material_for(request: Request) -> tuple:
+    """(rule data, background notes, paper index or None) for a visitor."""
+    workspace = workspace_for(request)
+    data, background, index = state["data"], state["domain_background"], None
+    if workspace is not None:
+        if workspace.rules is not None:
+            data = workspace.rules
+            background += (
+                "\n\n## Note on the rules\nThe visitor uploaded their own rule base "
+                f"({workspace.rules['source']}); the notes above describe the original "
+                "fNIRS study and may not describe the visitor's experiment."
+            )
+        if workspace.context:
+            background += (
+                "\n\n## Notes from the visitor about their experiment\n"
+                "(Written by the visitor; treat it as their description, not as "
+                "verified fact.)\n" + workspace.context
+            )
+        index = workspace.index
+    return data, background, index
+
+
+async def read_body(request: Request, limit: int) -> bytes:
+    """The request body, refused with 413 beyond `limit` bytes."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise HTTPException(413, f"The file is larger than {limit // (1024 * 1024) or limit // 1024} "
+                                 f"{'MB' if limit >= 1024 * 1024 else 'KB'}.")
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise HTTPException(413, "The file is too large.")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def own_workspace(workspace_id: str):
+    workspace = state["workspaces"].get(workspace_id)
+    if workspace is None:
+        raise HTTPException(404, "Your uploads have expired. They were reset to the original study.")
+    return workspace
+
+
+class ContextIn(BaseModel):
+    text: str
+
+
+@api.post("/workspace")
+def create_workspace():
+    return state["workspaces"].create().summary()
+
+
+@api.get("/workspace/{workspace_id}")
+def get_workspace(workspace_id: str):
+    return own_workspace(workspace_id).summary()
+
+
+@api.put("/workspace/{workspace_id}/rules")
+async def upload_rules(workspace_id: str, request: Request, filename: str = ""):
+    workspace = own_workspace(workspace_id)
+    raw = await read_body(request, MAX_RULE_FILE)
+    try:
+        workspace.rules = parse_rule_base(raw, filename)
+    except UploadError as exc:
+        raise HTTPException(400, str(exc))
+    return workspace.summary()
+
+
+@api.delete("/workspace/{workspace_id}/rules")
+def reset_rules(workspace_id: str):
+    workspace = own_workspace(workspace_id)
+    workspace.rules = None
+    return workspace.summary()
+
+
+@api.put("/workspace/{workspace_id}/context")
+def save_context(workspace_id: str, body: ContextIn):
+    workspace = own_workspace(workspace_id)
+    if len(body.text) > MAX_CONTEXT:
+        raise HTTPException(400, f"The notes are longer than {MAX_CONTEXT:,} characters.")
+    workspace.context = body.text.strip()
+    return workspace.summary()
+
+
+@api.post("/workspace/{workspace_id}/references")
+async def upload_reference(workspace_id: str, request: Request, filename: str = "reference"):
+    workspace = own_workspace(workspace_id)
+    raw = await read_body(request, MAX_REFERENCE_FILE)
+    try:
+        paper = await run_in_threadpool(extract_reference, raw, filename)
+        workspace.add_reference(paper)
+    except UploadError as exc:
+        raise HTTPException(400, str(exc))
+    return workspace.summary()
+
+
+@api.delete("/workspace/{workspace_id}/references/{ref_id}")
+def delete_reference(workspace_id: str, ref_id: str):
+    workspace = own_workspace(workspace_id)
+    workspace.remove_reference(ref_id)
+    return workspace.summary()
+
+
 def pick_client(role: Optional[str]):
     """(client, name, error) for a visitor. Behind the site's password gate
     Caddy passes the gate's verdict in X-Gate-Role (a visitor cannot set it):
@@ -391,9 +519,10 @@ def health(request: Request):
 
 
 @api.get("/rules", response_model=RulesResponse)
-def get_rules():
-    data = state["data"]
+def get_rules(request: Request):
+    data = material_for(request)[0]
     return RulesResponse(
+        source=data.get("source"),
         target_name=data["target_name"],
         n_rules=len(data["rules"]),
         rules=data["rules"],
@@ -414,21 +543,21 @@ def get_atlas():
 
 
 @api.get("/visualize/topomap", response_model=list[TopomapPoint])
-def visualize_topomap_overview():
+def visualize_topomap_overview(request: Request):
     """Topomap over EVERY rule in the model, not just ones matching a
     question - this is what the frontend's 'all rules' overview panel
     uses, since it needs to exist without a chat turn ever happening.
     Same builder as the per-question path in ask_with_visualization, so
     there's exactly one code path that decides what a topomap point is."""
-    data = state["data"]
+    data = material_for(request)[0]
     requested = resolve_requested_channels([], data["rules"])
     return build_topomap_payload(data["rules"], requested, state["channel_atlas"])
 
 
 @api.get("/visualize/chord", response_model=ChordData)
-def visualize_chord_overview():
+def visualize_chord_overview(request: Request):
     """Chord diagram over EVERY rule in the model - see visualize_topomap_overview."""
-    data = state["data"]
+    data = material_for(request)[0]
     requested = resolve_requested_channels([], data["rules"])
     return build_chord_payload(data["rules"], requested, state["channel_atlas"])
 
@@ -439,7 +568,7 @@ def ask_endpoint(req: AskRequest, request: Request):
     if not question:
         raise HTTPException(status_code=422, detail="question must not be empty")
 
-    data = state["data"]
+    data, background, paper_index = material_for(request)
     start = time.perf_counter()
     client, llm_name, _ = pick_client(request.headers.get("x-gate-role"))
 
@@ -485,7 +614,8 @@ def ask_endpoint(req: AskRequest, request: Request):
             try:
                 result = ask_general_neuro(
                     question, client,
-                    domain_background=state["domain_background"],
+                    domain_background=background,
+                    paper_index=paper_index,
                 )
                 answer = result["answer"]
                 citations = result.get("citations", [])
@@ -539,9 +669,10 @@ def ask_endpoint(req: AskRequest, request: Request):
         try:
             result = ask_with_visualization(
                 question, data, client,
-                domain_background=state["domain_background"],
+                domain_background=background,
                 brain_mapping=state["brain_mapping"],
                 channel_atlas=state["channel_atlas"],
+                paper_index=paper_index,
             )
             answer = result["answer"]
             retrieved = result["retrieved"]

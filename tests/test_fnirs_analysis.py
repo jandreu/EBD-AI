@@ -239,3 +239,76 @@ def test_wrong_haemoglobin_signal_is_caught(monkeypatch):
     for right in ('AF7 measures deoxygenated haemoglobin (HbR).', 'AF7 is used as HbR, not HbO.',
                   'HbO rises with load while AF7 and AFp8 are HbR channels.'):
         assert rag_core.check_answer_consistency(right, 'What does AF7 tell us?', rules, atlas) == []
+
+
+PRINTED_RULES = """Rules for consequent: 0 back
+----------------
+IF tmb_s2_chAF7 IS High AND tmb_s2_chCPP3 IS High WITH DS 0.065, ACC 0.857
+IF tmb_s1_chP3h IS Medium WITH DS 0.069, ACC 0.604
+
+Rules for consequent: 2/3 back
+----------------
+IF tmb_s1_chAFF3h IS Low AND tmb_s2_chAFF6 IS Medium (MOD very) WITH DS 0.10, ACC 0.89, WGHT 0.5
+IF tmb_s2_chAF8 IS Low WITH DS 0.229, ACC 0.897
+"""
+
+
+def test_rule_bases_in_ex_fuzzy_text_and_json_are_read(monkeypatch):
+    monkeypatch.syspath_prepend(str(DEMO))
+    import workspace
+    data = workspace.parse_rule_base(PRINTED_RULES.encode(), 'rules.txt')
+    assert [r['consequent'] for r in data['rules']] == ['0 back', '0 back', '2/3 back', '2/3 back']
+    assert data['rules'][2]['antecedent'] == 'tmb_s1_chAFF3h IS Low AND tmb_s2_chAFF6 IS Medium (MOD very)'
+    assert (data['rules'][2]['dominance_score'], data['rules'][2]['accuracy'], data['rules'][2]['weight']) == (0.10, 0.89, 0.5)
+    assert data['feature_names'] == ['tmb_s2_chAF7', 'tmb_s2_chCPP3', 'tmb_s1_chP3h', 'tmb_s1_chAFF3h', 'tmb_s2_chAFF6', 'tmb_s2_chAF8']
+    shipped = workspace.parse_rule_base((DEMO / 'data' / 'extracted_rules_final_raw.json').read_bytes(), 'r.json')
+    assert len(shipped['rules']) == 6 and shipped['cv_performance_estimate'] is not None
+    for bad in (b'no rules here', b'{"rules": 3}', b'IF x WITH DS 1', b'\\xff\\xfe'):
+        with pytest.raises(workspace.UploadError):
+            workspace.parse_rule_base(bad, 'bad.txt')
+
+
+def test_uploads_change_only_their_own_workspace(monkeypatch, tmp_path):
+    pytest.importorskip('fastapi')
+    pytest.importorskip('httpx')
+    from fastapi.testclient import TestClient
+    monkeypatch.syspath_prepend(str(DEMO))
+    monkeypatch.setenv('INTERACTIONS_DB_PATH', str(tmp_path / 'log.db'))
+    monkeypatch.setenv('VENICE_API_KEY', '')
+    import backend
+
+    class Recorder:
+        def __init__(self):
+            self.systems = []
+
+        def chat(self, model=None, messages=(), tools=None):
+            self.systems.append(messages[0]['content'])
+            return {'message': {'content': 'Rule 4 uses AF8.', 'tool_calls': []}}
+
+    with TestClient(backend.app) as http:
+        llm = Recorder()
+        backend.state['client'] = llm
+        ws = http.post('/api/workspace').json()['id']
+        mine = {'X-Workspace': ws}
+        assert http.put(f'/api/workspace/{ws}/rules?filename=rules.txt', content=PRINTED_RULES.encode()).status_code == 200
+        notes = 'Our pilot used a 16-channel prefrontal cap with twelve students.'
+        assert http.put(f'/api/workspace/{ws}/context', json={'text': notes}).status_code == 200
+        reference = b'Our pilot report. The 2-back blocks raised oxygenated haemoglobin at left frontal channels. ' * 3
+        summary = http.post(f'/api/workspace/{ws}/references?filename=pilot.txt', content=reference).json()
+        assert summary['rules']['n_rules'] == 4 and summary['references'][0]['name'] == 'pilot.txt'
+
+        assert http.get('/api/rules', headers=mine).json()['source'] == 'rules.txt'
+        assert http.get('/api/rules').json()['n_rules'] == 6          # others keep the shipped study
+        assert {p['bare_channel'] for p in http.get('/api/visualize/topomap', headers=mine).json()} >= {'AF7', 'AF8'}
+
+        body = http.post('/api/ask', json={'question': 'What does AF8 tell us about 2-back load?'}, headers=mine).json()
+        assert body['retrieved'][0]['antecedent'].startswith('tmb_s2_chAF8') or any(
+            r['antecedent'] == 'tmb_s2_chAF8 IS Low' for r in body['retrieved'])
+        assert notes in llm.systems[-1] and 'Our pilot report' in llm.systems[-1]
+        assert any(p['source'] == 'upload' for p in body['papers'])
+
+        ref_id = summary['references'][0]['id']
+        assert http.delete(f'/api/workspace/{ws}/references/{ref_id}').json()['references'] == []
+        assert http.delete(f'/api/workspace/{ws}/rules').json()['rules'] is None
+        assert http.put(f'/api/workspace/{ws}/rules', content=b'nothing useful').status_code == 400
+        assert http.get('/api/rules', headers={'X-Workspace': 'expired'}).status_code == 404
