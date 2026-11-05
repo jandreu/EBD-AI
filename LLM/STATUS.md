@@ -63,52 +63,16 @@ Workshop source:
 Verified in the `developer` mamba env: unit tests passed; all three notebooks
 ran with `python Demos/run_notebooks.py`.
 
-## Fuzzy Classroom teaching site (on `main`)
+## Fuzzy Classroom teaching site (moved out)
 
-`Demos/fuzzy_classroom/`: static teaching website plus `build_models.py`
-(exports fitted models to `site/models/*.js`) and `serve.py` (stdlib server
-with `/api/train`). Datasets: penguins (default), iris, football positions
-(FIFA 22, 2,650 players, 7 classes; `data/make_football_csv.py`) and breast
-cancer. Each dataset can
-override `DEFAULT_SETTINGS` in `DATASET_SETTINGS` (football: 20 rules, 3 ants,
-300 gens, pop 100, seed 12, `tolerance=0.01`; cancer: 2 ants, seed 8). Breast
-cancer (UCI Wisconsin Original, `data/make_cancer_csv.py`) sets `'scale': [1, 10]`
-in its loader: its sets are built from an evenly spaced grid, not data
-quantiles, because most scores are 1. Retraining accepts `n_partitions`
-2-5, `shape` trapezoid/triangular/gaussian (triangular needs 3 sets) and
-`tolerance`. `site/fuzzy.js` ports ex-fuzzy's Type-1 inference (clipping,
-trapezoid epsilon, Gaussian `exp(-z*z)`, product t-norm, `ds_mode` 0/1, first-max
-winner).
-If inference semantics change, rebuild the models and keep
-`tests/test_fuzzy_classroom.py` passing; its JS parity test needs `node` on PATH
-and skips otherwise. The page also reports parity live in its header badge.
-`serve.py` trains in a spawn-context process pool (workers = cores - 1,
-admission limit max(64, 4 x workers), 503 when full, 504 after `--timeout`,
-SIGTERM stops the workers); the server and page keep no state between visitors.
-`load_check.py` simulates a class against a running server.
+The classroom website, its exported models, the training server and the tests
+that check the JavaScript engine against `ex_fuzzy` moved to the separate
+private repository `jandreu/EBD-AI-Classroom` on 2026-11-05, and were removed
+from this repository's history. The deployment notes went with them: the live
+site runs that checkout, so nothing under `Demos/` here is served.
 
-### Public site (since 2026-10-07)
-
-Since 2026-10-15 the homepage of https://human-centred.ai is the fNIRS analysis
-demo (below), not the classroom; the classroom units are stopped and disabled,
-and the notes in this section describe how to bring them back. The development
-host served this checkout's Fuzzy Classroom as the homepage of
-https://human-centred.ai (`www` redirects to it). The server configuration is
-outside the repository and, by the user's choice, not versioned:
-
-- systemd units run `serve.py` on localhost with the `developer` env's Python
-  (`fuzzy-classroom` on port 8000; their worker counts and CPU pinning are server
-  configuration).
-- Caddy (`/etc/caddy/Caddyfile`) terminates HTTPS (Let's Encrypt, automatic
-  renewal) and reverse-proxies to it. Keep `serve.py` on localhost; it has no
-  TLS or authentication of its own.
-- Visitors can retrain (`/api/train`), bounded by the worker pool and admission
-  limit. To disable it, add `respond /api/train 403` to the Caddyfile.
-
-Consequences for agents working here: edits under `site/` are live as soon as
-they are saved; changes to `serve.py`, `build_models.py` or `ex_fuzzy` need
-`sudo systemctl restart fuzzy-classroom`; switching branches changes the live
-site. Logs: `journalctl -u fuzzy-classroom` and `journalctl -u caddy`.
+If the classroom needs changing, clone `jandreu/EBD-AI-Classroom` and install
+this package into its environment; it imports `ex_fuzzy` from here.
 
 ## fNIRS analysis demo (since 2026-10-15)
 
@@ -142,11 +106,9 @@ that unit's environment file outside the repository.
 Install libraries in the **mamba env `developer`**
 (`/home/ubuntu/miniforge3/envs/developer`). As of 2026-10-07 it holds
 Python 3.13, numpy, pandas, scikit-learn, matplotlib, pymoo, pytest and an
-editable `ebdai`, plus Node.js (so the JS parity tests in
-`tests/test_fuzzy_classroom.py` run) and Playwright with headless Chromium (for
-checking the classroom page in a browser). The live site runs from it, so test
-changes to it before restarting the service. `gh` (GitHub login **jandreu**)
-is not installed on the host at present.
+editable `ebdai`, plus Node.js and Playwright with headless Chromium for
+checking the web demos in a browser. `gh` (GitHub login **jandreu**) is not
+installed on the host at present.
 
 ```bash
 conda activate developer
