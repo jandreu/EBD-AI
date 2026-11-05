@@ -13,11 +13,33 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 Added
 -----
 - User guide and API pages for ``ebdai``, plus README links to bias demos 09–11.
+- **Temporal fuzzy sets** (``ebdai.temporal``): ``temporalFS``,
+  ``temporalFuzzyVariable``, ``temporalMasterRuleBase``,
+  ``TemporalFuzzyRulesClassifier``, ``eval_temporal_fuzzy_model`` and the
+  helpers that build temporal partitions from time stamps. They used to live in
+  ``ex_fuzzy``; see :doc:`temporal`.
+- **Batched fitness** (``batch_size``): the search still scores every candidate
+  on all the samples, but computes its firing strengths in slices, which bounds
+  memory on large tables.
+- **Growing training subset** (``initial_data_fraction``): the pymoo search can
+  start from a fraction of the rows and grow it as the generations advance.
+- ``unique_antecedents`` for the regression search, rule-set stability
+  diagnostics in ``pattern_stability``, and
+  ``utils.construct_breakpoint_partition`` for trapezoidal terms that follow
+  user-given band boundaries.
+- ``FitRuleBase`` no longer keeps the training data through pymoo's problem, so
+  a fitted classifier pickles and loads without its training set.
 
 Changed
 -------
 - Dropped demo notebook 08 and ``Demos/occupancy_data/``, matching upstream
-  Ex-Fuzzy (``05fea6e``). The temporal fuzzy-set library code remains.
+  Ex-Fuzzy (``05fea6e``).
+- **ex_fuzzy 3.3.1**: ported every upstream change after 3.3.0. Fixes include
+  ``explainable_predict`` reporting the winning rule's association degree (not
+  its largest firing), term genes bounded by the largest partition and remapped
+  proportionally, ``pruning_tolerance`` stored on ``MasterRuleBase``, and
+  training base rates predicted when no rule fires. Ex-Fuzzy removed its
+  temporal module; BDI keeps it in ``ebdai.temporal``.
 - **Packaging**: the metadata declares the license as the SPDX expression
   ``AGPL-3.0-or-later`` and ships the ``LICENSE`` file, replacing the
   deprecated license table and classifier. Building from source needs

@@ -262,6 +262,7 @@ class TorchObjective:
         self.n_terms = int(counts.sum())
         self._counts = counts.tolist()
         self.term_counts = torch.as_tensor(counts, device=device)
+        self.max_terms = int(counts.max())
         self.offsets = torch.as_tensor(np.concatenate(([0], np.cumsum(counts)[:-1])),
                                        dtype=torch.int64, device=device)
         self.table = None if table is None else torch.as_tensor(table, device=device)
@@ -276,6 +277,7 @@ class TorchObjective:
         self.y = torch.as_tensor(y, dtype=torch.int64, device=device)
         self.label_size = labels.size
         self.class_sizes = labels.class_sizes
+        self.majority = labels.majority
         self.shifted_y = torch.as_tensor(labels.shifted_y, dtype=torch.int64, device=device)
         self.class_masks = [torch.as_tensor(y == klass, dtype=torch.float64, device=device)
                             for klass in range(self.n_classes)]
@@ -340,7 +342,11 @@ class TorchObjective:
         for slot in range(n_ants):
             # Later slots overwrite earlier ones, as in the reference decoder.
             chosen = features[:, :, slot]
-            chosen_terms = torch.minimum(terms[:, :, slot], self.term_counts[chosen] - 1)
+            # The proportional term map of ``_fitness.remap_term``.
+            counts = self.term_counts[chosen]
+            chosen_terms = torch.where(
+                terms[:, :, slot] < 0, terms[:, :, slot],
+                torch.minimum((terms[:, :, slot] * counts) // self.max_terms, counts - 1))
             effective.scatter_(2, chosen.unsqueeze(2), chosen_terms.unsqueeze(2))
         active = (consequents != -1) & (effective != -1).any(dim=2)
         for source in range(1, n_rules):
@@ -382,11 +388,7 @@ class TorchObjective:
         association = torch.where(active.unsqueeze(2), association, -torch.inf)
         winners = association.argmax(dim=1)
         maxima = association.gather(1, winners.unsqueeze(1)).squeeze(1)
-        if self.allow_unknown:
-            eligible = maxima != 0.0
-        else:
-            eligible = torch.ones((population, n_samples), dtype=torch.bool, device=self.device)
-        eligible &= active.any(dim=1).unsqueeze(1)
+        eligible = (maxima != 0.0) & active.any(dim=1).unsqueeze(1)
         correct = (consequents.gather(1, winners) == self.y) & eligible
         correct_wins = self._winner_counts(winners, correct)
         # prune_bad_rules drops 'score < tolerance or accuracy == 0.0', and a
@@ -405,9 +407,8 @@ class TorchObjective:
         association = torch.where(active.unsqueeze(2), association, -torch.inf)
         winners = association.argmax(dim=1)
         prediction = consequents.gather(1, winners)
-        if self.allow_unknown:
-            maxima = association.gather(1, winners.unsqueeze(1)).squeeze(1)
-            prediction = torch.where(maxima == 0.0, -1, prediction)
+        maxima = association.gather(1, winners.unsqueeze(1)).squeeze(1)
+        prediction = torch.where(maxima == 0.0, -1 if self.allow_unknown else self.majority, prediction)
         return (list(self._class_counts(prediction)) + [survivors, declined]
                 + self._size_counts(effective, consequents, active))
 

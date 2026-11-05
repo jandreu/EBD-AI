@@ -12,7 +12,7 @@ from typing import Optional
 import numpy as np
 
 from . import rules
-from ._fitness import _FiringCache, _LabelDomain, _macro_f1, _penalized_objective
+from ._fitness import _FiringCache, _LabelDomain, _macro_f1, _penalized_objective, remap_terms
 
 
 _GATHER_BUDGET = 32 * 1024 * 1024
@@ -61,13 +61,14 @@ def _decode_population(genes: np.ndarray, n_rules: int, n_ants: int,
             or np.any(terms < -1)):
         return None
 
+    max_terms = int(term_counts.max())
     effective = np.full((population, n_rules, n_features), -1, dtype=np.int64)
     batch_rows = np.arange(population)[:, None]
     rule_rows = np.arange(n_rules)[None, :]
     for slot in range(n_ants):
         selected_features = features[:, :, slot]
-        selected_terms = np.minimum(
-            terms[:, :, slot], term_counts[selected_features] - 1)
+        selected_terms = remap_terms(
+            terms[:, :, slot], term_counts[selected_features], max_terms)
         effective[batch_rows, rule_rows, selected_features] = selected_terms
 
     active = (consequents != -1) & np.any(effective != -1, axis=2)
@@ -206,9 +207,7 @@ def score_population(genes: np.ndarray, packed: tuple, y: np.ndarray,
     winners = np.argmax(association, axis=2)
     maxima = np.max(association, axis=2)
     has_rules = np.any(active, axis=1)
-    eligible = ((maxima != 0.0) if allow_unknown
-                else np.ones((population, n_samples), dtype=bool))
-    eligible &= has_rules[:, None]
+    eligible = (maxima != 0.0) & has_rules[:, None]
     predicted = np.take_along_axis(consequents, winners, axis=1)
     correct = (predicted == y[None, :]) & eligible
     wins = _winner_counts(winners, eligible, n_rules)
@@ -229,8 +228,7 @@ def score_population(genes: np.ndarray, packed: tuple, y: np.ndarray,
     association = np.where(active[:, None, :], association, -np.inf)
     winners = np.argmax(association, axis=2)
     prediction = np.take_along_axis(consequents, winners, axis=1)
-    if allow_unknown:
-        prediction[np.max(association, axis=2) == 0.0] = -1
+    prediction[np.max(association, axis=2) == 0.0] = -1 if allow_unknown else labels.majority
     primary = _macro_f1(*_class_counts_population(prediction, labels))
     primary[survivor_count == 0] = 0.0
     class_ids = np.arange(n_classes)

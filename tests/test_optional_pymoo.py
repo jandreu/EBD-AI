@@ -44,7 +44,7 @@ def test_evox_fits_run_when_pymoo_cannot_be_imported():
             simulated_binary=lambda population, **kwargs: population.clone())
         operators.mutation = types.SimpleNamespace(
             polynomial_mutation=lambda population, **kwargs: population + torch.randint(
-                -1, 2, population.shape).float())
+                -1, 2, population.shape, device=population.device).float())
         evox.operators = operators
         sys.modules['evox'] = evox
         sys.modules['evox.operators'] = operators
@@ -106,6 +106,20 @@ def test_wrapped_problems_pickle():
     restored = pickle.loads(pickle.dumps(eb.as_pymoo_problem(problem)))
     genes = np.zeros((2, problem.n_var), dtype=int)
     np.testing.assert_array_equal(restored.evaluate(genes), problem.evaluate(genes))
+
+
+def test_wrapped_problems_unpickle_in_a_fresh_process(tmp_path):
+    # Fitted genetic classifiers keep pymoo's algorithm, whose problem is a wrapper; a new process
+    # has not built the wrapper class yet when it loads such a pickle.
+    path = tmp_path / 'wrapped.pkl'
+    path.write_bytes(pickle.dumps(eb.as_pymoo_problem(_iris_problem())))
+    result = _run_isolated(f"""
+        import pickle
+        restored = pickle.loads(open({str(path)!r}, 'rb').read())
+        print(type(restored).__name__, type(restored.problem).__name__)
+    """)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == ['PymooProblemWrapper', 'FitRuleBase']
 
 
 def test_starmap_runner_evaluates_in_order_and_drops_its_pool_when_pickled():

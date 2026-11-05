@@ -1,6 +1,6 @@
 # Agent handoff
 
-Last updated 2026-10-15. Check the working tree and `git log` before treating
+Last updated 2026-11-05. Check the working tree and `git log` before treating
 this as current.
 
 ## What this repository is
@@ -17,10 +17,15 @@ agent notes, and do not convert this repo into a GitHub fork. If a change
 touches `FitRuleBase`, `_fitness.py`, `_array_fitness.py`, or firing kernels,
 the evaluators must still agree with each other bit for bit.
 
-As of 2026-10-03, `upstream/main` is `93bb437` (Ex-Fuzzy 3.3.0: macro F1
-objective, honoured `tournament_size`, `algorithm='nsga2'`). That is merged
-into `main`. The temporal library code in `ex_fuzzy/temporal.py` stays. Do
-not merge `fix/python39-pymoo-install` (Python 3.9) or `gh-pages` into `main`.
+As of 2026-11-05, `upstream/main` is `fac6c0e` (2026-11-02) and every change
+after Ex-Fuzzy 3.3.0 is ported: term-gene bounds and proportional remapping,
+the `explainable_predict` association-degree fix, pickling without the training
+data, `pruning_tolerance`, breakpoint partitions, regression
+`unique_antecedents`, rule-set stability, batched fitness (`batch_size`),
+growing data (`initial_data_fraction`) and the no-rule-fires base rates.
+Upstream removed temporal fuzzy sets; BDI keeps them in `ebdai/temporal.py`,
+on top of the public `ex_fuzzy` API. Do not merge
+`fix/python39-pymoo-install` (Python 3.9) or `gh-pages` into `main`.
 
 ## Two packages, two versions
 
@@ -29,7 +34,7 @@ not merge `fix/python39-pymoo-install` (Python 3.9) or `gh-pages` into `main`.
 | Import | Path | Version | Role |
 | --- | --- | --- | --- |
 | `ebdai` | `ebdai/` | **1.0.1** (`ebdai/_version.py`, pip metadata) | BDI expansions |
-| `ex_fuzzy` | `ex_fuzzy/` | **3.3.0** (`ex_fuzzy/_version.py`) | Rebased Ex-Fuzzy API |
+| `ex_fuzzy` | `ex_fuzzy/` | **3.3.1** (`ex_fuzzy/_version.py`) | Rebased Ex-Fuzzy API |
 
 Do **not** re-export Ex-Fuzzy names from `ebdai`. Classes and enums must exist
 once per process. Register new `ebdai` modules in `ebdai/__init__.py`
@@ -39,7 +44,7 @@ once per process. Register new `ebdai` modules in `ebdai/__init__.py`
 
 Workshop source:
 [rferper/WorkshopIgualdad2025](https://github.com/rferper/WorkshopIgualdad2025)
-(Ex-Fuzzy 2.1.3 notebooks). Ported to current `ex_fuzzy` 3.3.0.
+(Ex-Fuzzy 2.1.3 notebooks). Ported to current `ex_fuzzy` 3.3.1.
 
 - Library: `ebdai/bias.py`, `ebdai/datasets.py`, CSVs in `ebdai/data/`
 - Public names: `outcome_rates_by_group`, `fairness_report`,
@@ -73,6 +78,22 @@ site runs that checkout, so nothing under `Demos/` here is served.
 
 If the classroom needs changing, clone `jandreu/EBD-AI-Classroom` and install
 this package into its environment; it imports `ex_fuzzy` from here.
+
+## Temporal fuzzy sets (in `ebdai`)
+
+`ebdai/temporal.py` holds `temporalFS`, `temporalFuzzyVariable`,
+`temporalMasterRuleBase`, `TemporalFuzzyRulesClassifier`,
+`eval_temporal_fuzzy_model` and the helpers that build temporal partitions
+(`create_tempVariables`, `create_multi_tempVariables`, `temporal_cuts`,
+`temporal_assemble`, `classify_temp`, `assign_time`,
+`construct_conditional_frequencies`). Ex-Fuzzy dropped temporal in 3.3.1, so
+this module is the only home for it.
+
+A temporal set's `type()` returns the family of the set it wraps (`t1`, `t2`,
+`gt2`) so ordinary ex_fuzzy code can consume it; `temporal_type()` says which
+temporal flavour it is. `temporalMasterRuleBase.bind_time_moments` lets the
+generic `evalRuleBase` evaluate a temporal rule base. Tests:
+`tests/test_ebdai_temporal.py`. Guide: `docs/source/temporal.rst`.
 
 ## fNIRS analysis demo (since 2026-10-15)
 

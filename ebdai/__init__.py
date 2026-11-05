@@ -11,7 +11,7 @@ from ._version import __version__
 
 #: Register new expansion modules here. Tests and demos import through this
 #: package, never the module files directly.
-_SUBMODULES: tuple[str, ...] = ('bias', 'datasets')
+_SUBMODULES: tuple[str, ...] = ('bias', 'datasets', 'temporal')
 
 #: Top-level names and the submodule that defines each of them.
 _EXPORTS: dict[str, str] = {
@@ -31,6 +31,21 @@ _EXPORTS: dict[str, str] = {
     'load_heart_failure': 'datasets',
     'load_loan_approval': 'datasets',
     'features_and_target': 'datasets',
+    # Temporal fuzzy sets, kept here since Ex-Fuzzy 3.3.1 dropped them.
+    'TMP_FUZZY_SETS': 'temporal',
+    'NEW_FUZZY_SETS': 'temporal',
+    'temporalFS': 'temporal',
+    'temporalFuzzyVariable': 'temporal',
+    'temporalMasterRuleBase': 'temporal',
+    'TemporalFuzzyRulesClassifier': 'temporal',
+    'eval_temporal_fuzzy_model': 'temporal',
+    'construct_conditional_frequencies': 'temporal',
+    'classify_temp': 'temporal',
+    'assign_time': 'temporal',
+    'create_tempVariables': 'temporal',
+    'create_multi_tempVariables': 'temporal',
+    'temporal_cuts': 'temporal',
+    'temporal_assemble': 'temporal',
 }
 
 __all__ = ['__version__', *_SUBMODULES, *_EXPORTS]

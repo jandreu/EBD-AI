@@ -1,37 +1,41 @@
 """
-Temporal Fuzzy Sets Module for BDI
+Temporal fuzzy sets for BDI.
 
-This module extends the base fuzzy sets functionality with temporal-aware fuzzy sets,
-enabling modeling of time-dependent fuzzy systems and temporal rule bases.
+Temporal-aware fuzzy sets, temporal rule bases, ``TemporalFuzzyRulesClassifier``
+and the helpers that turn time stamps into temporal partitions. Ex-Fuzzy
+removed its temporal module in 3.3.1; BDI keeps it here, on top of the public
+``ex_fuzzy`` API, so the rebase can follow upstream without losing it.
 
 Main Components:
     - TMP_FUZZY_SETS: Enumeration of temporal fuzzy set types
-    - TMP_FS: Temporal fuzzy set implementation
-    - TMP_fuzzyVariable: Temporal fuzzy variable container
-    - TMP_RuleBase: Temporal rule base for complex time-dependent reasoning
+    - temporalFS: Temporal fuzzy set implementation
+    - temporalFuzzyVariable: Temporal fuzzy variable container
+    - temporalMasterRuleBase: Temporal rule base for time-dependent reasoning
+    - TemporalFuzzyRulesClassifier: genetic classifier over temporal sets
+    - eval_temporal_fuzzy_model: training and test report for a temporal model
+    - create_tempVariables, create_multi_tempVariables, temporal_cuts,
+      temporal_assemble: helpers that build temporal partitions from time stamps
 
-The temporal fuzzy sets allow for modeling uncertainty that changes over time,
-making them suitable for applications like time-series analysis, temporal pattern
-recognition, and dynamic system modeling.
-
-Key Features:
-    - Time-conditional membership functions
-    - Temporal rule evaluation
-    - Integration with evolutionary optimization
-    - Support for both Type-1 and Type-2 temporal fuzzy sets
+A temporal set reports the type of the set it multiplies in time (``t1``,
+``t2`` or ``gt2``) from ``type()``, so the rest of BDI can treat it as an
+ordinary set of that family; ``temporal_type()`` says which temporal flavour
+it is.
 """
 import copy
 import enum
 
 import numpy as np
+import pandas as pd
 
 from sklearn.metrics import matthews_corrcoef
+from sklearn.model_selection import train_test_split
 
-from . import fuzzy_sets as fs
-from . import rules as rl
-from . import evolutionary_fit as evf
-from . import vis_rules
-from . import eval_rules as evr
+from ex_fuzzy import eval_rules as evr
+from ex_fuzzy import evolutionary_fit as evf
+from ex_fuzzy import fuzzy_sets as fs
+from ex_fuzzy import rules as rl
+from ex_fuzzy import utils
+from ex_fuzzy import vis_rules
 
 
 class TMP_FUZZY_SETS(enum.Enum):
@@ -43,9 +47,12 @@ class TMP_FUZZY_SETS(enum.Enum):
 
 
 # Compatibility alias for callers that imported the formerly generated enum.
-# FUZZY_SETS now has one stable, importable definition in fuzzy_sets.py so enum
-# members, fitted models, and optimization problems can be pickled by reference.
 NEW_FUZZY_SETS = fs.FUZZY_SETS
+
+#: Which temporal flavour wraps each family of set.
+_TEMPORAL_TYPE_OF = {fs.FUZZY_SETS.t1: TMP_FUZZY_SETS.temporal,
+                     fs.FUZZY_SETS.t2: TMP_FUZZY_SETS.temporal_t2,
+                     fs.FUZZY_SETS.gt2: TMP_FUZZY_SETS.temporal_gt2}
 ### DEFINE THE FUZZY SET ####
 class temporalFS(fs.FS):
     """
@@ -96,9 +103,19 @@ class temporalFS(fs.FS):
 
     def type(self) -> fs.FUZZY_SETS:
         """
-        Returns the type of the fuzzy set. (temporal)
+        Returns the type of the set this one multiplies in time: t1, t2 or gt2.
+
+        Ex-Fuzzy removed the temporal members of ``FUZZY_SETS``, so a temporal set reports the
+        family of the set it wraps and the rest of BDI handles it as one of those.
         """
-        return fs.FUZZY_SETS.temporal
+        return self.std_set.type()
+
+
+    def temporal_type(self) -> TMP_FUZZY_SETS:
+        """
+        Returns which temporal flavour this set is.
+        """
+        return _TEMPORAL_TYPE_OF[self.std_set.type()]
     
 
     def inside_type(self) -> fs.FUZZY_SETS:
@@ -208,6 +225,8 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         super().__init__(rule_base)
         self.time_steps = np.arange(len(rule_base))
         self.time_mrule_bases = rule_base
+        #: Time moment of each sample, bound by :meth:`bind_time_moments` for the generic evaluators.
+        self._time_moments = None
 
         if time_step_names is None:
             self.time_step_names = [str(x) for x in self.time_steps]
@@ -221,6 +240,34 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         
         self.antecedents = rule_base[0].antecedents
                      
+
+    def bind_time_moments(self, time_moments: list[int]) -> 'temporalMasterRuleBase':
+        """
+        Fix the time moment of each sample, for the generic evaluators.
+
+        ``ex_fuzzy.eval_rules.evalRuleBase`` calls ``compute_firing_strengths(X, precomputed_truth=...)``
+        without time moments, because Ex-Fuzzy's own temporal support was removed upstream. Binding them
+        once here lets the temporal methods be called with the ordinary signatures until rebound.
+
+        Args:
+            time_moments: time moment of each sample, or None to clear the binding.
+
+        Returns:
+            this rule base, so the call can be chained.
+        """
+        self._time_moments = None if time_moments is None else np.asarray(time_moments)
+        return self
+
+
+    def _resolve_time_moments(self, time_moments) -> np.array:
+        """Uses the given time moments, or the bound ones when the caller passes none."""
+        if time_moments is not None:
+            return np.asarray(time_moments)
+        if self._time_moments is None:
+            raise ValueError('This temporal rule base has no time moments. Pass them, or call '
+                             'bind_time_moments first.')
+        return self._time_moments
+
 
     def add_rule(self, rule: rl.RuleSimple, consequent: int, time_step: int) -> None:
         """
@@ -263,7 +310,7 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         return np.concatenate(res, axis=0)
 
 
-    def compute_firing_strengths(self, X: np.array, time_moments: list[int], precomputed_truth=None) -> np.array:
+    def compute_firing_strengths(self, X: np.array, time_moments: list[int]=None, precomputed_truth=None) -> np.array:
         """
         Computes the firing strength of each rule for each sample.
 
@@ -271,13 +318,14 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
 
         Args:
             X: array with the values of the inputs.
-            time_moments: time moment of each sample.
+            time_moments: time moment of each sample. Defaults to the moments bound with
+                :meth:`bind_time_moments`.
 
         Returns:
             array with the firing strength of each rule for each sample.
         """
         aux = []
-        time_moments = np.array(time_moments)
+        time_moments = self._resolve_time_moments(time_moments)
 
         for time_moment, rule_bases in enumerate(self.time_mrule_bases):
             actual_moment = np.equal(time_moments, time_moment)
@@ -295,13 +343,14 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         return np.concatenate(aux, axis=1)
 
 
-    def compute_association_degrees(self, X: np.array, time_moments: list[int], precomputed_truth=None) -> np.array:
+    def compute_association_degrees(self, X: np.array, time_moments: list[int]=None, precomputed_truth=None) -> np.array:
         """
         Computes the association degree of each rule for each sample, weighting the firing strengths by the dominance scores.
 
         Args:
             X: array with the values of the inputs.
-            time_moments: time moment of each sample.
+            time_moments: time moment of each sample. Defaults to the moments bound with
+                :meth:`bind_time_moments`.
 
         Returns:
             array with the association degree of each rule for each sample.
@@ -321,13 +370,14 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         return association_degrees
 
 
-    def winning_rule_predict(self, X: np.array, time_moments: list[int], precomputed_truth=None, out_class_names=False) -> np.array:
+    def winning_rule_predict(self, X: np.array, time_moments: list[int]=None, precomputed_truth=None, out_class_names=False) -> np.array:
         """
         Returns the predicted consequent for each sample. Takes into account dominance scores if already computed.
 
         Args:
             X: array with the values of the inputs.
-            time_moments: time moment of each sample.
+            time_moments: time moment of each sample. Defaults to the moments bound with
+                :meth:`bind_time_moments`.
             out_class_names: if True, returns the consequent names instead of their indexes.
 
         Returns:
@@ -459,25 +509,26 @@ class temporalMasterRuleBase(rl.MasterRuleBase):
         return rule_bases
     
 
-    def _winning_rules(self, X: np.array, temporal_moments: list[int], precomputed_truth=None, allow_unknown=True) -> tuple[np.array, np.array]:
+    def _winning_rules(self, X: np.array, temporal_moments: list[int]=None, precomputed_truth=None, allow_unknown=True) -> tuple[np.array, np.array]:
         """
         Returns the winning rule for each sample. Takes into account dominance scores if already computed.
 
         Args:
             X: array with the values of the inputs.
-            temporal_moments: time moment of each sample.
+            temporal_moments: time moment of each sample. Defaults to the moments bound with
+                :meth:`bind_time_moments`.
             allow_unknown: if True, samples that fire no rule get -1 as winning rule.
 
         Returns:
-            the index of the winning rule and its firing strength for each sample.
+            the index of the winning rule and its association degree for each sample.
         """
         association_degrees = self.compute_association_degrees(X, temporal_moments)
         if association_degrees.shape[1] == 0:
             return np.full(X.shape[0], -1), np.zeros(X.shape[0])
 
-        firing_strengths = self.compute_firing_strengths(X, temporal_moments)
         winning_rules = np.argmax(association_degrees, axis=1)
-        winning_association_degrees = np.max(firing_strengths, axis=1)
+        # The winner's association degree, as the generic rule base does.
+        winning_association_degrees = np.max(association_degrees, axis=1)
 
         if allow_unknown:
             winning_rules[np.max(association_degrees, axis=1) == 0.0] = -1
@@ -656,7 +707,7 @@ class TemporalFuzzyRulesClassifier(evf.BaseFuzzyRulesClassifier):
 
         self.rule_base = temporalMasterRuleBase(ruleBase_temp)
 
-        self.eval_performance = evr.evalRuleBase(self.rule_base, np.array(X), y, time_moments)
+        self.eval_performance = evr.evalRuleBase(self.rule_base.bind_time_moments(time_moments), np.array(X), y)
 
         self.eval_performance.add_full_evaluation()  
         self.rename_fuzzy_variables()
@@ -786,3 +837,223 @@ def eval_temporal_fuzzy_model(fl_classifier: evf.BaseFuzzyRulesClassifier, X_tra
         if return_rules:
             return res
 
+
+
+#### HELPERS THAT BUILD TEMPORAL PARTITIONS FROM TIME STAMPS ####
+def construct_conditional_frequencies(X: np.array, discrete_time_labels: list[int], initial_ffss: list[fs.FS]):
+    """
+    Computes the conditional temporal function for a set of fuzzy sets according to their variation in time.
+
+    Args:
+        X: numpy array, shape samples x features.
+        discrete_time_labels: discrete time labels.
+        initial_ffss: initial fuzzy set list.
+
+    Returns:
+        conditional frequencies. Array shape (time steps, initial fuzzy sets)
+    """
+    obs = X.shape[0]
+    discrete_time_labels = np.array(discrete_time_labels)
+    memberships = np.zeros((obs, len(initial_ffss)))
+    for ix, fset in enumerate(initial_ffss):
+        if fset.type() == fs.FUZZY_SETS.t2:
+            memberships[:, ix] = np.mean(fset.membership(X), axis=1)
+        elif fset.type() == fs.FUZZY_SETS.gt2:
+            memberships[:, ix] = np.mean(np.squeeze(fset._alpha_reduction(fset.membership(X))), axis=1)
+        else:
+            memberships[:, ix] = fset.membership(X)
+
+    max_memberships = np.argmax(memberships, axis=1)
+    res = np.zeros((len(np.unique(discrete_time_labels)), len(initial_ffss)))
+
+    for time in range(len(np.unique(discrete_time_labels))):
+
+        relevant_memberships = max_memberships[time == discrete_time_labels]
+        fs_winner_counter = np.zeros(len(initial_ffss))
+        for ix, fset in enumerate(initial_ffss):
+            fs_winner_counter[ix] = np.sum(relevant_memberships == ix)
+
+        res[time, :] = fs_winner_counter
+
+    return res / (np.max(res, axis=0) + 1e-6)
+
+
+def classify_temp(dates: pd.DataFrame, cutpoints: tuple[str, str], time: str) -> np.array:
+    """
+    Classifies a set of dates according to the temporal cutpoints. Uses {time} as a the time resolution.
+    Returns an array where true values are those values contained between those two date points.
+
+    Args:
+        dates: data observations to cut.
+        cutpoints: points to check.
+        time: time field to use as the criteria.
+
+    Returns:
+        boolean array. True values are those contained between the cutpoints.
+    """
+
+    def extract_hour(row):
+        return row.__getattribute__(time)
+
+    hours = pd.to_datetime(dates['date']).apply(extract_hour)
+
+    cutpoint_series_0 = pd.to_datetime(pd.Series([cutpoints[0]] * len(dates)))
+    cutpoint_series_0.index = dates.index
+    hours0 = cutpoint_series_0.apply(extract_hour)
+
+    cutpoint_series_1 = pd.to_datetime(pd.Series([cutpoints[1]] * len(dates)))
+    cutpoint_series_1.index = dates.index
+    hours1 = cutpoint_series_1.apply(extract_hour)
+
+    condicion1 = hours >= hours0
+    condicion2 = hours <= hours1
+
+    return np.array(np.logical_and(condicion1, condicion2))
+
+
+def assign_time(a: np.array, observations: list[np.array]) -> int:
+    """
+    Assigns a temporal moment to a set of observations.
+
+    Args:
+        a: array of boolean values.
+        observations: list of boolean arrays with the corresponding timestamps.
+
+    Returns:
+        the index of the correspondent time moment for the a-th observation.
+
+    Raises:
+        ValueError if a is not timestamped in any of the observation arrays.
+    """
+    for ix, obs in enumerate(observations):
+        if obs[a]:
+            return ix
+
+    raise ValueError('No temporal moment assigned')
+
+
+def create_tempVariables(X_train: np.array, time_moments: np.array,
+                         precomputed_partitions: list[fs.fuzzyVariable]) -> list['temporalFuzzyVariable']:
+    """
+    Creates a list of temporal fuzzy variables.
+
+    Args:
+        X_train: numpy array, shape samples x features.
+        time_moments: time moments. Array shape (samples,). Each value is an integer denoting the n-th time moment of that observation.
+        precomputed_partitions: precomputed partitions for each feature.
+
+    Returns:
+        list of temporal fuzzy variables.
+    """
+    temp_partitions = []
+    for ix in range(X_train.shape[1]):
+        feat_conditional = construct_conditional_frequencies(X_train[:, ix], time_moments, initial_ffss=precomputed_partitions[ix])
+        temp_fs_list = []
+        for vl in range(feat_conditional.shape[1]):
+            vl_temp_fs = temporalFS(precomputed_partitions[ix][vl], feat_conditional[:, vl])
+            temp_fs_list.append(vl_temp_fs)
+
+        temp_fs_variable = temporalFuzzyVariable(precomputed_partitions[ix].name, temp_fs_list)
+        temp_partitions.append(temp_fs_variable)
+
+    return temp_partitions
+
+
+def create_multi_tempVariables(X_train: np.array, time_moments: np.array,
+                               fuzzy_type: fs.FUZZY_SETS) -> list[list['temporalFuzzyVariable']]:
+    """
+    Creates a list of lists of temporal fuzzy variables, one per time moment, built from the data of that moment.
+
+    (So, instead of having one variable for all time moments, you have a different one for each moment that
+    represents the same idea.)
+
+    Args:
+        X_train: numpy array, shape samples x features.
+        time_moments: time moments. Array shape (samples,). Each value is an integer denoting the n-th time moment of that observation.
+        fuzzy_type: kind of fuzzy sets used to build the partitions of each moment.
+
+    Returns:
+        list of lists of temporal fuzzy variables.
+    """
+    temp_partitions = []
+
+    unique_time_moments = np.unique(time_moments)
+    for time in unique_time_moments:
+        X_obs = X_train[time_moments == time, :]
+        precomputed_partitions = utils.construct_partitions(X_obs, fuzzy_type)
+
+        temp_partitions.append(create_tempVariables(X_obs, time_moments[time_moments == time], precomputed_partitions))
+
+    return temp_partitions
+
+
+def temporal_cuts(X: pd.DataFrame, cutpoints: list[tuple[str, str]], time_resolution: str='hour') -> list[np.array]:
+    """
+    Returns a list of boolean indexes for each temporal moment. Performs the cuts between time steps using the cutpoints list.
+
+    Args:
+        X: data observations to cut in temporal moments.
+        cutpoints: list of tuples with the cutpoints for each temporal moment.
+        time_resolution: time field to use as the criteria.
+
+    Returns:
+        list of boolean arrays. True values are those contained between the cutpoints in each moment.
+    """
+    res = []
+    for ix, cutpoint in enumerate(cutpoints):
+        observations = classify_temp(X, cutpoint, time=time_resolution)
+        res.append(observations)
+
+    return res
+
+
+def temporal_assemble(X: np.array, y: np.array, temporal_moments: list[np.array]):
+    """
+    Assembles the data in the temporal moments in order to have partitions with balanced time moments in each one.
+
+    Args:
+        X: data observations.
+        y: labels.
+        temporal_moments: list of boolean arrays. True values are those contained between the cutpoints in each moment.
+
+    Returns:
+        tuple of lists of data and labels for each temporal moment.
+            First tuple is: X_train, X_test, y_train, y_test
+            Second tuple is: train temporal moments, test temporal moments.
+    """
+    moments_partitions = []
+    train_temporal_boolean_markers = []
+    test_temporal_boolean_markers = []
+    train_counter = 0
+    test_counter = 0
+
+    for ix, temporal_moment in enumerate(temporal_moments):
+        X_train, X_test, y_train, y_test = train_test_split(X[temporal_moment], y[temporal_moment], test_size=0.33, random_state=0)
+        moments_partitions.append((X_train, X_test, y_train, y_test))
+
+    if isinstance(X_train, (pd.core.series.Series, pd.DataFrame)):
+        X_train = pd.concat([moments_partitions[ix][0] for ix in range(len(moments_partitions))])
+        X_test = pd.concat([moments_partitions[ix][1] for ix in range(len(moments_partitions))])
+        y_train = np.concatenate([moments_partitions[ix][2] for ix in range(len(moments_partitions))])
+        y_test = np.concatenate([moments_partitions[ix][3] for ix in range(len(moments_partitions))])
+    else:
+        X_train = np.concatenate([moments_partitions[ix][0] for ix in range(len(moments_partitions))])
+        X_test = np.concatenate([moments_partitions[ix][1] for ix in range(len(moments_partitions))])
+        y_train = np.concatenate([moments_partitions[ix][2] for ix in range(len(moments_partitions))])
+        y_test = np.concatenate([moments_partitions[ix][3] for ix in range(len(moments_partitions))])
+
+    for ix, temporal_moment in enumerate(temporal_moments):
+        # Believe, this makes sense to avoid rounding errors in the size of the final vector
+        _, _, y_train0, y_test0 = train_test_split(X[temporal_moment], y[temporal_moment], test_size=0.33, random_state=0)
+
+        train_moment_observations = np.zeros((X_train.shape[0]))
+        train_moment_observations[train_counter:train_counter + len(y_train0)] = 1
+        train_counter += len(y_train0)
+        train_temporal_boolean_markers.append(train_moment_observations)
+
+        test_moment_observations = np.zeros((X_test.shape[0]))
+        test_moment_observations[test_counter:test_counter + len(y_test0)] = 1
+        test_counter += len(y_test0)
+        test_temporal_boolean_markers.append(test_moment_observations)
+
+    return [X_train, X_test, y_train, y_test], [train_temporal_boolean_markers, test_temporal_boolean_markers]

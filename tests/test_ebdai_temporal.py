@@ -8,9 +8,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 
+from ebdai import temporal
 from ex_fuzzy import fuzzy_sets as fs
 from ex_fuzzy import rules as rl
-from ex_fuzzy import temporal
 from ex_fuzzy import utils
 
 
@@ -55,7 +55,8 @@ def test_temporal_fuzzy_set_scales_memberships_by_time():
     x = np.array([0.1, 0.45, 0.9])
 
     assert temporal_set.name == 'Low'
-    assert temporal_set.type() == fs.FUZZY_SETS.temporal
+    assert temporal_set.type() == fs.FUZZY_SETS.t1
+    assert temporal_set.temporal_type() == temporal.TMP_FUZZY_SETS.temporal
     assert temporal_set.inside_type() == fs.FUZZY_SETS.t1
     assert temporal_set.membership_parameters == base.membership_parameters
     np.testing.assert_allclose(temporal_set.membership(x, 1), base.membership(x) * 0.25)
@@ -70,12 +71,14 @@ def test_temporal_fuzzy_sets_keep_type_2_parameters():
     iv_set = fs.IVFS('Low', [0, 0, 0.3, 0.5], [0, 0, 0.4, 0.6], [0, 1])
     temporal_iv = temporal.temporalFS(iv_set, CONDITIONAL)
     assert temporal_iv.inside_type() == fs.FUZZY_SETS.t2
+    assert temporal_iv.temporal_type() == temporal.TMP_FUZZY_SETS.temporal_t2
     assert temporal_iv.secondMF_lower == iv_set.secondMF_lower
     assert temporal_iv.secondMF_upper == iv_set.secondMF_upper
 
     gt2_set = utils.construct_partitions(np.linspace(0, 1, 20).reshape(-1, 1), fs.FUZZY_SETS.gt2)[0][0]
     temporal_gt2 = temporal.temporalFS(gt2_set, CONDITIONAL)
     assert temporal_gt2.inside_type() == fs.FUZZY_SETS.gt2
+    assert temporal_gt2.temporal_type() == temporal.TMP_FUZZY_SETS.temporal_gt2
     assert temporal_gt2.alpha_cuts is gt2_set.alpha_cuts
     assert temporal_gt2.secondary_memberships is gt2_set.secondary_memberships
 
@@ -86,7 +89,7 @@ def test_temporal_fuzzy_variable():
     variable = temporal.temporalFuzzyVariable('x', sets)
     x = np.array([0.2, 0.8])
 
-    assert variable.fs_type == fs.FUZZY_SETS.temporal
+    assert variable.fs_type == fs.FUZZY_SETS.t1
     assert variable.n_time_moments() == 2
     with pytest.raises(ValueError, match='no fixed time'):
         variable.compute_memberships(x)
@@ -102,11 +105,11 @@ def test_temporal_variables_from_conditional_frequencies(iris):
     X, _, time_moments = iris
     partitions = utils.construct_partitions(X, fs.FUZZY_SETS.t1)
 
-    variables = utils.create_tempVariables(X, time_moments, partitions)
+    variables = temporal.create_tempVariables(X, time_moments, partitions)
     assert [variable.name for variable in variables] == [partition.name for partition in partitions]
     assert all(variable.n_time_moments() == 2 for variable in variables)
 
-    per_moment = utils.create_multi_tempVariables(X, time_moments, fs.FUZZY_SETS.t1)
+    per_moment = temporal.create_multi_tempVariables(X, time_moments, fs.FUZZY_SETS.t1)
     assert len(per_moment) == 2
     assert all(len(variables) == X.shape[1] for variables in per_moment)
 

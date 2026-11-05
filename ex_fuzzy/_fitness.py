@@ -2,7 +2,8 @@
 Private fitness evaluation for decoded T1/T2 classification rule bases.
 
 Decoding remains in FitRuleBase: this module never interprets chromosomes or
-caches chromosome-dependent memberships. The full evaluator is the oracle.
+caches chromosome-dependent memberships, apart from the one term-gene mapping
+every decoder shares (``remap_term``). The full evaluator is the oracle.
 """
 import numpy as np
 from collections import OrderedDict
@@ -17,6 +18,37 @@ DEFAULT_COMPACTNESS_WEIGHT = 0.03
 #: Default weight of the class-coverage penalty: the share of classes left
 #: without rules (``beta`` of ``reparametrize_loss``).
 DEFAULT_COVERAGE_WEIGHT = 0.05
+
+
+def remap_term(gene: int, n_terms: int, max_terms: int) -> int:
+    """
+    Term index a term gene selects in a variable with ``n_terms`` terms.
+
+    A term gene is bounded by the largest partition (``max_terms``) because it
+    does not know which variable its slot will hold. A value ``g`` in
+    ``0..max_terms - 1`` selects term ``(g * n_terms) // max_terms``: the map is
+    order preserving (neighbouring genes select equal or adjacent terms), reaches
+    every term, gives each term ``floor`` or ``ceil`` of ``max_terms / n_terms``
+    gene values, and is the identity when ``n_terms == max_terms``. Negative
+    genes ("don't care") are returned unchanged. A gene above ``max_terms - 1``
+    (never drawn within the bounds) selects the last term.
+    """
+    if gene < 0:
+        return gene
+    return min((gene * n_terms) // max_terms, n_terms - 1)
+
+
+def remap_terms(genes: np.ndarray, n_terms: np.ndarray, max_terms: int) -> np.ndarray:
+    """Array form of :func:`remap_term`; ``n_terms`` broadcasts against ``genes``."""
+    mapped = np.minimum((genes * n_terms) // max_terms, n_terms - 1)
+    return np.where(genes < 0, genes, mapped)
+
+
+def term_gene(term: int, n_terms: int, max_terms: int) -> int:
+    """Smallest gene that :func:`remap_term` decodes to ``term`` (``-1`` stays ``-1``)."""
+    if term < 0:
+        return term
+    return -((-term * max_terms) // n_terms)
 
 
 class _FitnessCache:
@@ -54,6 +86,11 @@ class _FitnessCache:
         while len(self.entries) > self.capacity or self.key_bytes > self.max_key_bytes:
             removed, _ = self.entries.popitem(last=False)
             self.key_bytes -= len(removed)
+
+    def clear(self) -> None:
+        """Forget every entry, measured on training data that has changed."""
+        self.entries.clear()
+        self.key_bytes = 0
 
 
 class _ClassMaskCache:
@@ -114,6 +151,11 @@ class _FiringCache:
         while self.bytes > self.max_bytes:
             _, removed = self.entries.popitem(last=False)
             self.bytes -= removed.nbytes
+
+    def clear(self) -> None:
+        """Forget every column, computed on training data that has changed."""
+        self.entries.clear()
+        self.bytes = 0
 
 
 #: Populations of genotypes the fitness cache holds when the fit's size is known.
@@ -271,12 +313,13 @@ class _LabelDomain:
     while it is in use, exactly like the precomputed memberships.
     """
 
-    __slots__ = ('size', 'shifted_y', 'class_sizes')
+    __slots__ = ('size', 'shifted_y', 'class_sizes', 'majority')
 
     def __init__(self, y: np.ndarray, n_classes: int) -> None:
         self.size = n_classes + 1  # one slot per class, plus unknown at index 0
         self.shifted_y = np.asarray(y) + 1
         self.class_sizes = np.bincount(self.shifted_y, minlength=self.size)[1:]
+        self.majority = int(np.argmax(self.class_sizes))  # what _majority_class returns
 
     @classmethod
     def build(cls, y: np.ndarray, n_classes: int) -> Optional['_LabelDomain']:
@@ -287,6 +330,28 @@ class _LabelDomain:
         if values.min() < -1 or values.max() >= n_classes:
             return None
         return cls(values, n_classes)
+
+
+def _majority_class(y: np.ndarray, n_classes: int) -> int:
+    """
+    The most frequent class among ``0 .. n_classes - 1``, the first on ties.
+
+    A sample that fires no rule (every association degree is 0) is won by no
+    rule; with ``allow_unknown=False`` it is predicted as this class, the
+    training base rate's mode, and otherwise as the unknown ``-1``.
+    """
+    return int(np.argmax([np.count_nonzero(y == k) for k in range(n_classes)]))
+
+
+def _class_priors(y: np.ndarray, n_classes: int) -> np.ndarray:
+    """
+    The share of each class ``0 .. n_classes - 1`` in ``y``, uniform if none occurs.
+
+    Stored as ``MasterRuleBase.class_priors``; its argmax is :func:`_majority_class`.
+    """
+    counts = np.array([np.count_nonzero(y == k) for k in range(n_classes)], dtype=float)
+    total = counts.sum()
+    return counts / total if total else np.full(n_classes, 1.0 / n_classes)
 
 
 def _class_counts(y: np.ndarray, prediction: np.ndarray, n_classes: int) -> tuple:
@@ -373,6 +438,8 @@ def score_rulebase(rulebase, X: np.ndarray, y: np.ndarray, tolerance: float,
     indexes.  With ``pareto`` it returns ``(accuracy, compactness)`` instead.
     Pruning uses winners *before* removal. Final predictions select winners
     among surviving rules, preserving class/rule order and first-index ties.
+    A sample that fires no rule counts towards no rule's accuracy and is
+    predicted as :func:`_majority_class`, or as -1 with ``allow_unknown``.
     """
     n_classes = len(rulebase.get_rulebases())
     all_rules = rulebase.get_rules()
@@ -389,8 +456,7 @@ def score_rulebase(rulebase, X: np.ndarray, y: np.ndarray, tolerance: float,
     scores = _dominance(firing, y, consequents, mask_cache)
     association = _association(firing, scores, weights, rulebase.ds_mode)
     winners = np.argmax(association, axis=1)
-    eligible = (np.max(association, axis=1) != 0.0 if rulebase.allow_unknown
-                else np.ones(len(y), dtype=bool))
+    eligible = np.max(association, axis=1) != 0.0
     correct = (consequents[winners] == y) & eligible
     correct_wins = np.bincount(winners[correct], minlength=len(all_rules))
     wins = np.bincount(winners[eligible], minlength=len(all_rules))
@@ -414,8 +480,8 @@ def score_rulebase(rulebase, X: np.ndarray, y: np.ndarray, tolerance: float,
         rule.score = score
     association = _association(firing, scores, weights[keep], rulebase.ds_mode)
     prediction = consequents[np.argmax(association, axis=1)]
-    if rulebase.allow_unknown:
-        prediction[np.max(association, axis=1) == 0.0] = -1
+    prediction[np.max(association, axis=1) == 0.0] = (-1 if rulebase.allow_unknown
+                                                      else _majority_class(y, n_classes))
     primary = _macro_f1(*_class_counts(y, prediction, n_classes))
     covered = np.count_nonzero(np.bincount(consequents, minlength=n_classes))
     conditions = sum(np.count_nonzero(np.asarray(rule.antecedents) != -1) for rule in survivors)
@@ -446,6 +512,8 @@ def score_rulebase_objects(rulebase, X: np.ndarray, y: np.ndarray, tolerance: fl
         return _as_score(_penalized_objective(0.0, 0, 0, n_classes, max_conditions, alpha, beta,
                                               pareto))
     evaluator.add_rule_weights()
+    # The samples no rule fires on fall back to the base rates of y, as in score_rulebase.
+    rulebase.class_priors = _class_priors(np.asarray(y), n_classes)
     prediction = np.asarray(rulebase.winning_rule_predict(X, precomputed_truth=precomputed_truth))
     primary = _macro_f1(*_class_counts(np.asarray(y), prediction, n_classes))
     covered = sum(1 for rule_base in rulebase.get_rulebases() if len(rule_base) > 0)
