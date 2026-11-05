@@ -219,7 +219,7 @@ class Problem:
 
 
 #: Actionable error for code paths that need pymoo when it cannot be imported.
-PYMOO_INSTALL_MESSAGE = ("The 'pymoo' backend and the temporal classifier need pymoo. "
+PYMOO_INSTALL_MESSAGE = ("The 'pymoo' backend needs pymoo. "
                          "Install it with: pip install 'pymoo>=0.6.2'")
 
 _PYMOO_PROBLEM_CLASS = None
@@ -269,6 +269,19 @@ def _pymoo_problem_class():
     globals()[PymooProblemWrapper.__name__] = PymooProblemWrapper
     _PYMOO_PROBLEM_CLASS = PymooProblemWrapper
     return PymooProblemWrapper
+
+
+def __getattr__(name: str) -> Any:
+    """
+    Build ``PymooProblemWrapper`` when it is first looked up.
+
+    Unpickling in a new process looks the class up by name before anything has
+    built it, for example when loading a fitted genetic classifier, which keeps
+    pymoo's algorithm and its wrapped problem.
+    """
+    if name == "PymooProblemWrapper":
+        return _pymoo_problem_class()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def as_pymoo_problem(problem: Any):

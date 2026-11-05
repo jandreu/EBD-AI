@@ -54,40 +54,6 @@ def test_construct_partitions_gt2():
     assert partitions[0][0].alpha_reduction(partitions[0](0.1)[0]) is not None, 'Alpha reduction should return a value'
 
 
-def test_temporal_conditional():
-    sample_size = 10
-    first_temp = int(sample_size / 2)
-    sample = np.concatenate([
-        np.linspace(0.05, 0.45, first_temp),
-        np.linspace(0.55, 0.95, sample_size - first_temp),
-    ])
-    time_labels = [0] * sample_size
-    time_labels[first_temp:] = [1] * first_temp
-
-    vl1 = ex_fuzzy.fuzzy_sets.FS('',[0, 0.20, 0.30, 0.5], [0, 1])
-    vl2 = ex_fuzzy.fuzzy_sets.FS('',[0.5, 0.70, 0.80, 1], [0, 1])
-
-    conditional_frequencies = ex_fuzzy.utils.construct_conditional_frequencies(sample, time_labels, [vl1, vl2])
-
-    assert conditional_frequencies[0, 0] > conditional_frequencies[0, 1]
-    assert conditional_frequencies[1, 0] < conditional_frequencies[1, 1]
-
-
-def test_temporal_assemble():
-    sample_size = 1000
-    sample = np.random.random_sample((sample_size, 5))
-    y = np.random.randint(0, 2, sample_size)
-
-    temp_moments1 = np.random.randint(0, 2, sample_size)
-    temp_moments2 = 1 - temp_moments1
-    temp_moments = [temp_moments1, temp_moments2]
-
-    [X_train, X_test, y_train, y_test], [train_temporal_boolean_markers, test_temporal_boolean_markers] = ex_fuzzy.utils.temporal_assemble(sample, y, temp_moments)
-
-    t1test = [y_test[jx] for jx, aux in enumerate(test_temporal_boolean_markers[0]) if aux]
-    t2test = [y_test[jx] for jx, aux in enumerate(test_temporal_boolean_markers[1]) if aux]
-
-    assert len(t1test) == len(t2test)
 
 
 import pandas as pd
@@ -122,7 +88,64 @@ def test_partition_shapes_names_and_errors():
     with pytest.raises(ValueError, match='Shape not recognized'):
         utils.construct_partitions(X, fs.FUZZY_SETS.t1, shape='hexagon')
     with pytest.raises(ValueError, match='Fuzzy set type not recognized'):
-        utils.construct_partitions(X, fs.FUZZY_SETS.temporal)
+        utils.construct_partitions(X, 'not a fuzzy type')
+
+
+def test_breakpoint_partition_follows_the_given_bands_with_shoulders():
+    bands = utils.construct_breakpoint_partition(
+        'NO2', ['Good', 'Fair', 'Poor'], [40, 90], [0, 400], transition=[10, 20], units='ug/m3')
+
+    assert bands.name == 'NO2' and bands.units == 'ug/m3' and bands.domain() == [0.0, 400.0]
+    assert bands.linguistic_variable_names() == ['Good', 'Fair', 'Poor']
+    assert [fuzzy_set.membership_parameters for fuzzy_set in bands] == [
+        [0.0, 0.0, 35.0, 45.0], [35.0, 45.0, 80.0, 100.0], [80.0, 100.0, 400.0, 400.0]]
+    # Plateaus, half membership at each breakpoint, and the shoulders keep their value beyond the domain.
+    values = np.array([-20.0, 0.0, 20.0, 40.0, 60.0, 90.0, 250.0, 900.0])
+    memberships = bands.compute_memberships(values)
+    np.testing.assert_allclose(memberships[0], [1, 1, 1, 0.5, 0, 0, 0, 0], atol=1e-3)
+    np.testing.assert_allclose(memberships[1], [0, 0, 0, 0.5, 1, 0.5, 0, 0], atol=1e-3)
+    np.testing.assert_allclose(memberships[2], [0, 0, 0, 0, 0, 0.5, 1, 1], atol=1e-3)
+    # Along the ramps the neighbouring terms complete each other.
+    np.testing.assert_allclose(bands.compute_memberships(np.linspace(0, 400, 81)).sum(axis=0), 1.0, atol=1e-3)
+
+
+@pytest.mark.parametrize('arguments, message', [
+    (dict(term_names=['a'], breakpoints=[], domain=[0, 1], transition=0.1), 'at least two terms'),
+    (dict(term_names=['a', 'b', 'c'], breakpoints=[0.5], domain=[0, 1], transition=0.1), 'one breakpoint'),
+    (dict(term_names=['a', 'b', 'c'], breakpoints=[0.6, 0.4], domain=[0, 1], transition=0.1), 'increasing'),
+    (dict(term_names=['a', 'b'], breakpoints=[0.5], domain=[0, 1], transition=0), 'positive'),
+    (dict(term_names=['a', 'b'], breakpoints=[0.5], domain=[0, 1], transition=[-1]), 'positive'),
+    (dict(term_names=['a', 'b'], breakpoints=[0.05], domain=[0, 1], transition=0.2), 'inside the domain'),
+    (dict(term_names=['a', 'b'], breakpoints=[0.95], domain=[0, 1], transition=0.2), 'inside the domain'),
+    (dict(term_names=['a', 'b', 'c'], breakpoints=[0.4, 0.5], domain=[0, 1], transition=0.2), 'overlap'),
+    (dict(term_names=['a', 'b'], breakpoints=[0.5], domain=[0, np.inf], transition=0.1), 'finite'),
+    (dict(term_names=['a', 'b'], breakpoints=[np.nan], domain=[0, 1], transition=0.1), 'finite'),
+])
+def test_breakpoint_partition_rejects_inconsistent_bands(arguments, message):
+    with pytest.raises(ValueError, match=message):
+        utils.construct_breakpoint_partition('x', **arguments)
+
+
+def test_breakpoint_partitions_can_be_given_to_the_estimators():
+    rng = np.random.default_rng(0)
+    X = np.column_stack([rng.uniform(0, 100, 150), rng.uniform(0, 1, 150)])
+    y = (X[:, 0] > 50).astype(int)
+    partitions = [
+        utils.construct_breakpoint_partition('a', ['low', 'mid', 'high'], [30, 70], [0, 100], transition=10),
+        utils.construct_breakpoint_partition('b', ['low', 'high'], [0.5], [0, 1], transition=0.2),
+    ]
+
+    classifier = ex_fuzzy.evolutionary_fit.BaseFuzzyRulesClassifier(
+        nRules=4, nAnts=2, linguistic_variables=partitions)
+    classifier.fit(X, y, n_gen=3, pop_size=10, random_state=0)
+    assert classifier.predict(X).shape == (150,)
+    assert classifier.rule_base.antecedents[0].linguistic_variable_names() == ['low', 'mid', 'high']
+
+    regressor = ex_fuzzy.evolutionary_fit_regression.BaseFuzzyRulesRegressor(
+        nRules=4, nAnts=2, linguistic_variables=partitions)
+    regressor.fit(X, X[:, 0] / 100, n_gen=3, pop_size=10, random_state=0)
+    assert regressor.predict(X).shape == (150,)
+    assert regressor.get_rulebase().antecedents[1].linguistic_variable_names() == ['low', 'high']
 
 
 def test_categorical_detection_can_be_disabled_and_ignores_missing_values():
@@ -152,41 +175,6 @@ def test_categorical_partitions_follow_the_fuzzy_type():
     assert isinstance(only_categorical[0][0], fs.categoricalIVFS)
 
 
-@pytest.mark.parametrize('fuzzy_type', [fs.FUZZY_SETS.t2, fs.FUZZY_SETS.gt2])
-def test_temporal_conditional_for_type_2_sets(fuzzy_type):
-    sample = np.concatenate([np.linspace(0, 0.3, 20), np.linspace(0.7, 1, 20)])
-    partitions = utils.construct_partitions(sample.reshape(-1, 1), fuzzy_type)[0]
-
-    conditional_frequencies = utils.construct_conditional_frequencies(sample, [0] * 20 + [1] * 20, partitions)
-    assert conditional_frequencies.shape == (2, 3)
-    assert conditional_frequencies[0, 0] > conditional_frequencies[0, 2]
-    assert conditional_frequencies[1, 2] > conditional_frequencies[1, 0]
-
-
-def test_temporal_cuts_and_time_assignment():
-    dates = pd.DataFrame({'date': pd.date_range('2024-01-01 00:00', periods=24, freq='h')})
-    cuts = utils.temporal_cuts(dates, [('2024-01-01 00:00', '2024-01-01 11:00'), ('2024-01-01 12:00', '2024-01-01 23:00')])
-
-    np.testing.assert_array_equal(cuts[0], np.arange(24) <= 11)
-    np.testing.assert_array_equal(cuts[1], np.arange(24) >= 12)
-    assert utils.assign_time(3, cuts) == 0
-    assert utils.assign_time(20, cuts) == 1
-    with pytest.raises(ValueError, match='No temporal moment'):
-        utils.assign_time(3, [np.zeros(24, dtype=bool)])
-
-
-def test_temporal_assemble_keeps_dataframes():
-    rng = np.random.default_rng(0)
-    frame = pd.DataFrame(rng.random((100, 3)))
-    y = rng.integers(0, 2, 100)
-    moments = [np.arange(100) < 50, np.arange(100) >= 50]
-
-    [X_train, X_test, y_train, y_test], [train_markers, test_markers] = utils.temporal_assemble(frame, y, moments)
-    assert isinstance(X_train, pd.DataFrame) and isinstance(X_test, pd.DataFrame)
-    assert len(X_train) + len(X_test) == 100
-    assert len(y_train) == len(X_train) and len(y_test) == len(X_test)
-    assert sum(train_markers[0]) + sum(train_markers[1]) == len(X_train)
-    assert sum(test_markers[0]) + sum(test_markers[1]) == len(X_test)
 
 
 def test_mcc_loss_scores_a_rule_base():
@@ -219,6 +207,4 @@ if __name__ == '__main__':
     test_construct_partitions_t1()
     test_construct_partitions_t2()
     test_construct_partitions_gt2()
-    test_temporal_conditional()
-    test_temporal_assemble()
     print('All tests passed.')

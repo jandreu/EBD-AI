@@ -7,9 +7,10 @@ Ex-Fuzzy. Read [STATUS.md](STATUS.md) for versions, remotes, and recent work.
 
 Two import packages ship from one pip distribution (`ebdai` 1.0.1):
 
-- `ex_fuzzy/` — rebased Ex-Fuzzy API (`ex_fuzzy.__version__` is 3.3.0)
+- `ex_fuzzy/` — rebased Ex-Fuzzy API (`ex_fuzzy.__version__` is 3.3.1)
 - `ebdai/` — BDI expansions that accept `ex_fuzzy` objects (`ebdai.__version__`
-  is 1.0.1). Do not re-export Ex-Fuzzy names from `ebdai`.
+  is 1.0.1). Do not re-export Ex-Fuzzy names from `ebdai`, except the temporal
+  sets it now owns (upstream removed them from Ex-Fuzzy).
 
 Tests are in `tests/`, opt-in benchmarks in `benchmarks/`, examples in
 `Demos/`, and Sphinx sources in `docs/source/`. Check packaging metadata for
@@ -38,9 +39,9 @@ All module paths below are relative to `ex_fuzzy/`.
 
 | Area | Modules |
 | --- | --- |
-| Fuzzy sets and linguistic variables | `fuzzy_sets.py`, `utils.py`, `temporal.py`, `centroid.py` |
+| Fuzzy sets and linguistic variables | `fuzzy_sets.py`, `utils.py`, `centroid.py` |
 | Rule representation, inference, firing kernels | `rules.py` |
-| Genetic classification | `evolutionary_fit.py`, `evolutionary_backends.py`, `evolutionary_search.py`, `_problem.py` (optimizer-independent problem base and pymoo wrapper) |
+| Genetic classification | `evolutionary_fit.py`, `evolutionary_backends.py`, `evolutionary_search.py`, `_problem.py` (optimizer-independent problem base and pymoo wrapper), `_streamed_fitness.py` (`batch_size` scoring), `_growing_data.py` (`initial_data_fraction` schedule) |
 | Exact built-in objective | `_fitness.py`, `_array_fitness.py`, `_population_fitness.py` (CPU population batching), `_torch_fitness.py` (exact PyTorch population objective for EvoX devices) |
 | Population route selection | `_dispatch_profile.py` |
 | Regression | `evolutionary_fit_regression.py` |
@@ -58,10 +59,11 @@ All module paths below are relative to `ex_fuzzy/`.
 | Version | `_version.py` (pip / `ebdai.__version__`, not `ex_fuzzy._version`) |
 | Bias in data and inference | `bias.py` |
 | Workshop tables | `datasets.py`, `data/*.csv` |
+| Temporal fuzzy sets | `temporal.py` (moved out of `ex_fuzzy` when upstream removed it) |
 
 PyMoo is the default backend and supports checkpoints. The fitting problems
 subclass `_problem.Problem`, not pymoo's; pymoo is imported only when the PyMoo
-backend or the temporal classifier runs, which wrap problems with
+backend or the temporal classifier in `ebdai.temporal` runs, which wrap problems with
 `as_pymoo_problem`. Keep module-level pymoo imports out of the package
 (`tests/test_optional_pymoo.py` checks it). EvoX classification scores
 whole generations through `FitRuleBase._evaluate_gene_population`, sharing the

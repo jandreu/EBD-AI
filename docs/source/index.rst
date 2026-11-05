@@ -257,7 +257,7 @@ Documentation Contents
     precom
     optimize
     gt2
-    tmpfs
+    temporal
     extending
     persistence
     classifiers

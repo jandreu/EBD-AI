@@ -24,3 +24,15 @@ Datasets
    :members:
    :undoc-members:
    :show-inheritance:
+
+Temporal fuzzy sets
+===================
+
+Kept here because Ex-Fuzzy 3.3.1 removed its temporal module. Guide:
+:doc:`../temporal`.
+
+.. automodule:: ebdai.temporal
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :exclude-members: TMP_FUZZY_SETS
