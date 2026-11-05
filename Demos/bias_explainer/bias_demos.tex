@@ -32,6 +32,9 @@
 \definecolor{ebbluepale}{HTML}{E7F0F8}
 \definecolor{ebamber}{HTML}{8A4B08}
 \definecolor{ebamberpale}{HTML}{FBF4E6}
+\definecolor{ebdplum}{HTML}{6A4A78}
+\definecolor{ebdplumpale}{HTML}{F3EEF7}
+
 \definecolor{ebdmuted}{HTML}{5C6B7A}
 \definecolor{ebdtrack}{HTML}{E3E8ED}
 \definecolor{ebdrow}{HTML}{F6F8FA}
@@ -101,6 +104,12 @@
   colframe = ebamberpale,
   borderline west = {3pt}{0pt}{ebamber},
 }
+\newtcolorbox{plainwords}{
+  colback = ebdplumpale,
+  colframe = ebdplumpale,
+  borderline west = {3pt}{0pt}{ebdplum},
+}
+
 
 \newcommand{\fn}[1]{\texttt{\small #1}}
 \newcommand{\track}[2]{%
@@ -137,6 +146,10 @@ BDI is the Explainable By Design AI toolbox. The phrase is the definition. A mod
 
 In these notebooks that object is a short list of if--then rules. Ask why one passenger was predicted to survive, and the answer is a sentence you can point at, plus a number saying how strongly the sentence matched that passenger. \fn{explainable\_predict} returns that explanation directly: the predicted class, the index of the winning rule, and the match.
 
+\begin{plainwords}
+\textbf{In plain words.} Most AI systems are a large pile of numbers. A person goes in, a decision comes out, and there is no part of it you can point at and call the reason. The model in these notebooks is different. The whole of it is a short list of ordinary sentences, such as ``if the passenger is a woman of middling age, predict that she survived''. When you ask why one person got the answer they got, you read the sentence that won. There is nothing else hiding behind it.
+\end{plainwords}
+
 \begin{idea}
 \textbf{Two ways to explain a model.} A post-hoc explanation trains an opaque model, such as a neural net or a large ensemble, and afterwards builds a second story about it: a saliency map, a list of feature scores, or a simpler model fitted to copy it. That second story can be useful, and it can disagree with the model that decided. An explainable-by-design model keeps the decision procedure in a form you audit directly. Here, you audit the sentences that fire.
 \end{idea}
@@ -160,6 +173,10 @@ That audit can see three things a block of weights does not show as text.
 \label{sec:law}
 
 Explainability matters here because a person on the receiving end of a serious decision, and the person asked to oversee the system, both have to be able to see how that outcome was produced. In September 2026 the European rules already require that for many automated decisions about people. A further set of duties, written specifically for high-risk AI, is on the statute book with later start dates. This section is a map of those duties. It is not legal advice, and a classroom notebook is not a system placed on the market.
+
+\begin{plainwords}
+\textbf{In plain words.} If a computer takes a decision that really affects you --- a loan, a job, a place on a waiting list --- European law says that somebody must be able to tell you why, in language you can follow, and that you must be able to argue back. ``The computer decided'' is not an answer. That is the practical reason to prefer a model that already speaks in sentences: the reason exists before anyone asks for it, and it is the same reason the machine used.
+\end{plainwords}
 
 \subsection{The explanation already owed to one person}
 
@@ -216,6 +233,10 @@ The high-risk calendar does not postpone the prohibition on sex discrimination. 
 
 A fuzzy rule-based classifier is a list of if--then sentences and a rule for choosing among them. The sentences use soft words, so a value near a boundary matches a word partly. These demos train that classifier with \fn{BaseFuzzyRulesClassifier}.
 
+\begin{plainwords}
+\textbf{In plain words.} Picture the model as a short checklist that the computer wrote by itself. Every line is a sentence of the form ``if this and this, then predict that''. To decide about one person, every sentence on the list is compared with that person and scores how well it fits. The best-fitting sentence gives the answer. The rest of this section explains the three pieces that make this work: how a word such as Low can half-fit, how several conditions combine into a single score, and where the sentences came from.
+\end{plainwords}
+
 \begin{table}[H]
 \centering
 \small
@@ -243,6 +264,10 @@ A crisp cutoff would say that age under 30 is young and any greater age is not. 
 \]
 
 Zero means the word misses this value. One means the word fits completely. A number in between means a partial fit. Neighbouring words overlap, so one age can be partly Low and partly Medium.
+
+\begin{plainwords}
+\textbf{In plain words.} Suppose a rule uses the word ``young''. With a hard line at 30, a person of 29 is young and a person of 30 is not, and one birthday flips the decision. A fuzzy word does not behave like that. At 22 the word fits fully, at 33 it fits halfway, at 45 it does not fit at all. Everyone near a boundary is partly one word and partly the next. It is closer to the way people actually speak, and no single day decides anything.
+\end{plainwords}
 
 One such sentence, of the kind the heart-failure notebook prints, is:
 
@@ -281,6 +306,10 @@ When a rule has several conditions, the matches are multiplied. That product is 
 
 A rule may use at most three conditions in these demos (\fn{nAnts=3}). A condition slot can be left unused, which is why a printed rule is often shorter than three. The decision score is the firing multiplied by the rule weight. Demos 9 and 10 set \fn{ds\_mode=1}, which forces every weight to 1, so the firing alone is the score. Demo 11 sets \fn{ds\_mode=2}: the search also chooses a weight for each rule, and a modest firing can win when the weight is high.
 
+\begin{plainwords}
+\textbf{In plain words.} A sentence with several conditions behaves like a chain. Each condition scores between 0 and 1 for this person, and the scores are multiplied together, so two half-fits leave a quarter. One condition that does not fit at all --- a score of 0 --- silences the whole sentence for that person, however well the others fit.
+\end{plainwords}
+
 \subsection{The winning rule}
 
 For each person the model scores every rule. The rule with the highest score wins, and its \textbf{then} clause is the prediction. \fn{explainable\_predict} returns that prediction together with the index of the winning rule. \fn{winning\_rules\_by\_group} counts those indexes inside each sensitive group.
@@ -306,6 +335,10 @@ For each person the model scores every rule. The rule with the highest score win
 
 Some fuzzy classifiers add up every rule that votes for a class and compare those totals. These notebooks keep a single winner. \fn{predict} returns that rule's consequent, and \fn{explainable\_predict} names the same rule. The sentence you read is the sentence that decided.
 
+\begin{plainwords}
+\textbf{In plain words.} All the sentences look at the same person at once, and each reports how well it fits. The best fit wins outright, and its ``then'' half becomes the model's answer. There is no vote and no averaging. So for every single person there is exactly one sentence responsible for the answer, and the notebook can count who each sentence decided for. Those counts, split by sex or gender, are most of what demos 9 and 10 do.
+\end{plainwords}
+
 Beside each printed rule are three numbers.
 
 \begin{itemize}
@@ -313,6 +346,26 @@ Beside each printed rule are three numbers.
   \item \textbf{ACC} is the share of cases in which this rule won \emph{and} was right. A rare rule can have ACC of 100\% and still barely affect anyone.
   \item \textbf{WGHT} is the weight used at decision time. It is 1.0 throughout demos 9 and 10.
 \end{itemize}
+
+\begin{plainwords}
+\textbf{In plain words.} DS says how much work a sentence does. ACC says how often it is right when it does that work. The two are easy to confuse, and they answer different questions: a sentence can be right every single time it speaks and still speak about almost nobody. Read them together, or a footnote will look like the main point. That is exactly the trap the heart-failure demo sets.
+\end{plainwords}
+
+Those first two numbers are counted like this. Write \(\mu_r(x_i)\) for the firing strength of rule \(r\) on person \(i\), let \(c\) be the class on that rule's THEN side, and let \(N\) be the number of training rows:
+
+\[
+\mathrm{DS}_r
+=
+\underbrace{\frac{1}{N}\sum_{i\,:\,y_i = c} \mu_r(x_i)}_{\text{support}}
+\;\times\;
+\underbrace{\frac{\sum_{i\,:\,y_i = c} \mu_r(x_i)}{\sum_{i} \mu_r(x_i)}}_{\text{confidence}}
+\qquad
+\mathrm{ACC}_r
+=
+\frac{\#\{\,i : r \text{ won, and } c = y_i\,\}}{\#\{\,i : r \text{ won}\,\}}
+\]
+
+Support is how much the rule fires on its own class, spread over the whole table. Confidence is the share of all its firing that lands on that class. A rule that fires on everybody has a large support and a small confidence, and the product stays small. ACC counts only the people the rule actually decided, which is how a rule reaches \pct{100} on a handful of them. Both are computed on the training rows. These are the Type-1 forms the demos use; with interval Type-2 sets the lower and upper firing are averaged first.
 
 \subsection{How the search chooses the sentences}
 \label{sec:search}
@@ -330,6 +383,10 @@ The sentences are not written by hand in these notebooks. A genetic search keeps
 
 MCC is used because accuracy flatters a lazy rule on an uneven table. On the Titanic test passengers, predicting that everyone died would be right for 136 of 235 people, about \pct{58}. The fitted rules are right for 153 of 235, about \pct{65}, and their MCC is only 0.26. On the loan test applications, approving everyone would be right for 112 of 159 people, about \pct{70}. The baseline rules are right for 94 of 159, about \pct{59}, while their MCC stays positive at 0.17 because some of the denials are correct. Accuracy went down. The correlation did not disappear. The search follows the correlation.
 
+\begin{plainwords}
+\textbf{In plain words.} Nobody writes these sentences. The computer starts from twelve random checklists, tries each one on the training rows, keeps those that did better, mixes and tweaks them, and repeats. It is trial and error, with the best guesses surviving. The score it tries to raise measures how well a whole checklist agrees with what actually happened. Plain accuracy is avoided because, on a table where most people died, the lazy checklist ``everybody died'' scores well while saying nothing at all.
+\end{plainwords}
+
 \begin{careful}
 \textbf{The search in these notebooks is a classroom budget.} Each fit tries 12 candidate rule sets for at most 6 generations and stops after 3 generations without improvement (\fn{n\_gen=6}, \fn{pop\_size=12}, \fn{patience=3}). The library defaults are much larger. Read the stored rules as a demonstration of the measurements. A longer search can write different sentences. The way you read a printed rule stays the same.
 \end{careful}
@@ -341,6 +398,10 @@ Up to 8 rules are available on the Titanic and the loans (\fn{nRules=8}), and up
 \label{sec:picture}
 
 With that classifier in hand, the notebooks ask which group the sentences pick. Every number below is the run stored in the notebooks: the same train--test split (\fn{test\_size=0.33}, \fn{random\_state=42}) and the short search in Section~\ref{sec:search}.
+
+\begin{plainwords}
+\textbf{In plain words.} From here the guide stops explaining machinery and starts reading results. Each demo asks the same two questions, in the same order. First: in the data as recorded, how often did the event happen to each group? Second: once the model is trained, how often does it \emph{predict} that event for each group, and how often is that prediction right? Bias stops being a word and becomes those numbers.
+\end{plainwords}
 
 \begin{lesson}
 \textbf{Titanic (demo 9).} In the prepared table, 195 of 259 women survive and 93 of 453 men survive. On the held-out passengers the rules predict survival for 49 of 86 women and for none of 149 men.
@@ -392,6 +453,10 @@ The event is whatever the notebook passes as \fn{positive\_label=1}. The tools d
 
 Use the Titanic test women as the running example: 86 women, of whom 64 survived and 22 died. The rules predict survival for 49 of them. Of those 49, 33 had survived and 16 had died.
 
+\begin{plainwords}
+\textbf{In plain words.} Only two kinds of number appear in this section, and everything else is built from them. The first counts what happened to people: of the women aboard, how many survived? The second counts what the model says: of the women in the test set, for how many does it predict survival? The first belongs to history; the second belongs to the model. Comparing them, one group at a time, is the whole of a fairness report.
+\end{plainwords}
+
 \begin{idea}
 \textbf{Outcome rate} --- before the model. Among people in the group, how often did the event happen?
 
@@ -423,6 +488,10 @@ Split the group by what truly happened.
 
 TPR and FPR answer a different question from the selection rate. Two groups can be selected equally often while the errors fall on different people. Two groups can also have similar error rates and very different selection rates, because the event itself was already more common in one group.
 
+\begin{plainwords}
+\textbf{In plain words.} Being chosen equally often is not the same as being treated equally well. Imagine two lists of predicted survivors of the same length, one made of the right people and the other mostly of the wrong ones. The selection rate cannot tell them apart. TPR and FPR can. TPR asks: of the people it should have picked, how many did it pick? FPR asks: of the people it should have left out, how many did it pick anyway?
+\end{plainwords}
+
 \subsection{Demographic parity and equalized odds}
 
 Demographic parity compares selection rates. The notebook prints two summaries.
@@ -438,9 +507,94 @@ A difference of 0 and a ratio of 1 mean the groups are selected equally often. T
 
 Equalized odds compares the error rates. The printed difference is the \emph{larger} of the TPR gap and the FPR gap. On the Titanic test set the FPR gap is the larger one: women who died are predicted to survive \pct{73} of the time, and men who died are predicted to survive \pct{0} of the time.
 
+\begin{plainwords}
+\textbf{In plain words.} Two definitions of fair, and they are not the same demand. Demographic parity: both groups are picked equally often, never mind whether the picks were right. Equalized odds: the model makes its mistakes at the same rate in both groups, never mind how many it picks. When the event really is more common in one group, no model can satisfy both at once, because closing one gap opens the other. That is not a defect in the software. It is a choice a person has to make, and has to be able to defend.
+\end{plainwords}
+
 \begin{careful}
 \textbf{A ratio of 0 usually means one rate is zero.} The heart-failure test set has a false-positive rate of 0 for men, so \fn{equalized\_odds\_ratio} prints as 0 even though the TPR gap is 10 points and the FPR gap is 5 points. Read \fn{tpr\_difference} and \fn{fpr\_difference} before reading the ratio. The difference is the quantity the loan penalty uses.
 \end{careful}
+
+\subsection{Every printed number, in symbols}
+\label{sec:formulas}
+
+Fix one group \(a\) --- the women, say --- and one event, the value the notebook passes as \fn{positive\_label}. Inside that group every person falls into exactly one of four boxes, by what truly happened and by what the model predicted.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y Y@{}}
+\toprule
+Inside group \(a\) & Model predicts the event & Model predicts the other outcome \\
+\midrule
+The event happened & \(TP_a\) & \(FN_a\) \\
+\rowcolor{ebdrow}
+The event did not happen & \(FP_a\) & \(TN_a\) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent
+Those four counts, with the group size \(n_a = TP_a + FP_a + FN_a + TN_a\), are everything the report is built from.
+
+\[
+\text{outcome rate}_a = \frac{TP_a + FN_a}{n_a}
+\qquad
+\text{selection rate}_a = \frac{TP_a + FP_a}{n_a}
+\]
+
+\[
+\mathrm{TPR}_a = \frac{TP_a}{TP_a + FN_a}
+\quad
+\mathrm{FPR}_a = \frac{FP_a}{FP_a + TN_a}
+\quad
+\mathrm{FNR}_a = \frac{FN_a}{TP_a + FN_a}
+\quad
+\mathrm{TNR}_a = \frac{TN_a}{FP_a + TN_a}
+\]
+
+The outcome rate counts labels only, so it does not depend on the model: \fn{outcome\_rates\_by\_group} is called on the whole prepared table before training, and \fn{fairness\_report} on the test rows. The last two rates are the first two taken from 1, \(\mathrm{FNR} = 1 - \mathrm{TPR}\) and \(\mathrm{TNR} = 1 - \mathrm{FPR}\); the frame prints all four because reading a row is easier than subtracting.
+
+A gap turns one of those rates into a single number for the whole table. Two operators do it, over the groups \(a\) in which the rate is defined:
+
+\[
+\Delta(v) = \max_a v_a - \min_a v_a
+\qquad
+\rho(v) = \frac{\min_a v_a}{\max_a v_a}
+\]
+
+\(\Delta\) is 0 and \(\rho\) is 1 when the groups agree. With more than two groups they still compare the highest with the lowest. Every summary the notebook prints is one of those two operators applied to one of the rates above.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y c@{}}
+\toprule
+Printed key & What it computes & Equal groups give \\
+\midrule
+\fn{selection\_rate} & \((TP_a + FP_a) / n_a\), one row per group & --- \\
+\rowcolor{ebdrow}
+\fn{demographic\_parity\_difference} & \(\Delta(\text{selection rate})\) & 0 \\
+\fn{demographic\_parity\_ratio} & \(\rho(\text{selection rate})\) & 1 \\
+\rowcolor{ebdrow}
+\fn{tpr\_difference} & \(\Delta(\mathrm{TPR})\) & 0 \\
+\fn{fpr\_difference} & \(\Delta(\mathrm{FPR})\) & 0 \\
+\rowcolor{ebdrow}
+\fn{equalized\_odds\_difference} & \(\max\{\Delta(\mathrm{TPR}),\; \Delta(\mathrm{FPR})\}\) & 0 \\
+\fn{equalized\_odds\_ratio} & \(\min\{\rho(\mathrm{TPR}),\; \rho(\mathrm{FPR})\}\) & 1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{In plain words.} Every line of that table is the same two-step recipe. Work out one percentage for each group --- how often they are picked, or how often the model is wrong about them --- and then compare the groups by subtracting the smallest from the largest, or by dividing one into the other. Subtracting gives a number that is 0 when the groups match; dividing gives one that is 1 when they match. Nothing more complicated is happening.
+\end{plainwords}
+
+\begin{careful}
+\textbf{An empty box leaves a rate undefined, not zero.} A group in which nobody experienced the event has \(TP_a + FN_a = 0\) and therefore no TPR at all: the frame prints \fn{NaN}, and that group is skipped when the highest and the lowest are taken. A ratio is 0 exactly when the smallest rate is 0, and it is undefined when the largest one is. That is the arithmetic behind the warning above.
+\end{careful}
+
+The same four counts, taken over every row at once instead of group by group, are the \(TP\), \(FP\), \(FN\) and \(TN\) of the MCC in Section~\ref{sec:search}. That is the difference between the two kinds of number in this guide. MCC scores the model on everybody. The gaps compare what the model does to one group with what it does to another. Section~\ref{sec:loans} then puts a gap inside the training score itself.
 
 % ---------------------------------------------------------------------
 \section{Titanic: the imbalance is already in the labels}
@@ -462,6 +616,10 @@ Men   & \track{0.205}{ebdmen} & 93 of 453 \\
 
 \noindent
 This is the state of the table before training. A rule that is allowed to say ``sex is female'' has a large, real association to copy. The historical pattern in these data, women surviving much more often than men, is visible without a model.
+
+\begin{plainwords}
+\textbf{In plain words.} On this ship women were rescued far more often than men, and that is simply what the table records. So a model allowed to read sex does not need to be clever: copying that one fact already takes it most of the way. What follows is a check on whether it did exactly that.
+\end{plainwords}
 
 \subsection{The six sentences the short search kept}
 
@@ -508,6 +666,10 @@ Deaths predicted as survival & 16 of 22 & 0 of 114 \\
 \end{tabularx}
 \end{table}
 
+\begin{plainwords}
+\textbf{In plain words.} The result in one line: every woman the model thought looked like a survivor was predicted to survive, and every single man was predicted to have died --- including the 35 men who did survive. One sentence, about women in the middle age band, is doing nearly all of the work, and sex is the word it leans on.
+\end{plainwords}
+
 Those 49 predicted survivals are exactly the 49 women for whom the survival rule won. It wins for none of the men, so every man is predicted to have died, including the 35 men who survived. Demographic parity difference is 0.57. The larger error gap is the false-positive gap, 0.73, and that is the equalized-odds difference.
 
 Test accuracy is 153 of 235, about \pct{65}, against \pct{58} for the rule ``everyone died.'' Test MCC is 0.26. The model has learned something, and what it has learned is concentrated on sex.
@@ -515,6 +677,16 @@ Test accuracy is 153 of 235, about \pct{65}, against \pct{58} for the rule ``eve
 \begin{lesson}
 On this table the label gap and the prediction gap point the same way. Women survive much more often, the loudest rule says that a woman in the middle age band survived, and on the test passengers that rule is the only source of predicted survivals.
 \end{lesson}
+
+\begin{plainwords}
+\textbf{Take-home.} The printed \(0.57\) is a count on the test passengers. Of 86 women, the rules predict survival for 49. Of 149 men, they predict survival for none:
+\[
+\frac{49}{86} - \frac{0}{149} \approx 0.57.
+\]
+Women are predicted to survive about \pct{57} of the time, and men \pct{0} of the time. Because the men's rate is zero, that one rate is the whole gap. It is the proportion \(0.57\), easy to misread as ``0.57 percent.'' It is a different number from the accuracy: on these same passengers the rules are right for 153 of 235 people, about \pct{65}.
+
+The \pct{57} says how often each group is given a survival prediction. The true positive rate and the false positive rate say whether that prediction was right, once people are split by what actually happened. A woman who survived is caught in 33 of 64 cases. A man who survived is never caught, all 35 of them. A woman who died is still predicted to survive in 16 of 22 cases. A man who died never is. Equalized odds holds when both of those differences are zero. The notebook prints the larger one. Here that is about 0.73, the false-positive gap.
+\end{plainwords}
 
 % ---------------------------------------------------------------------
 \section{Heart failure: similar labels, one rare rule}
@@ -536,6 +708,10 @@ Men   & \track{0.320}{ebdmen} & 62 of 194 \\
 
 \noindent
 The two bars are the lesson in the labels. About one patient in three dies, in both groups. A model can still write a sentence that names sex. The dominance score tells you whether that sentence matters.
+
+\begin{plainwords}
+\textbf{In plain words.} Here the two groups die at practically the same rate, so there is no imbalance for the model to copy. It still wrote a sentence with the word sex in it --- and that sentence turns out to decide almost nobody. This is the demo that teaches you to ask how much a sentence is used before deciding what it means. A rule that is never wrong and almost never used is a curiosity, not a policy.
+\end{plainwords}
 
 \begin{table}[H]
 \centering
@@ -587,6 +763,30 @@ These sentences are a six-generation search on a few hundred patients. They are 
 A label gap near zero does not promise that no rule names the sensitive column. Look at the dominance score next to any rule that does. Here the column is named by a rule the model almost never uses, and the prediction gap on the test patients is a handful of people.
 \end{lesson}
 
+A gap in this guide is the difference between the women's rate and the men's rate. The same subtraction is done three times, because there are three rates.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Y c c c@{}}
+\toprule
+What is counted & Women & Men & Gap \\
+\midrule
+Death already in the table & 34 of 105 & 62 of 194 & about 0 points \\
+Death predicted on the test patients & 3 of 32 & 2 of 67 & about 6 points \\
+Deaths the model caught & 2 of 12 & 2 of 30 & about 10 points \\
+\rowcolor{ebdrow}
+False alarms, among those who lived & 1 of 20 & 0 of 37 & about 5 points \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{Take-home.} The first row is the label gap: how often death had already happened, before any rule was trained. The second is the prediction gap: how often the rules say ``death.'' The last two are the error gaps, among patients with the same true outcome. ``A handful of people'' is that second row: 3 predicted deaths against 2.
+
+Equalized odds holds when the two error gaps are both zero. The notebook prints the larger of them, here 0.10. The printed ratio is 0 because the men's false-alarm rate is exactly zero. That zero is one false alarm against none, on 20 and 37 people. The two differences are the quantities to read.
+\end{plainwords}
+
 % ---------------------------------------------------------------------
 \section{Loans: changing the score the search maximises}
 \label{sec:loans}
@@ -606,9 +806,13 @@ Men   & \track{0.706}{ebdmen} & 278 of 394 \\
 \end{table}
 
 \noindent
-The label gap is about eight percentage points, 278/394 against 54/86. Men are also most of the table: 394 of 480 applicants. The test set then contains 22 women and 137 men. Two women moving from one side of a count to the other changes the female rate by about nine points (\(2/22\)). Read the loan percentages together with the counts.
+The label gap is about eight percentage points, 278/394 against 54/86. Men are also most of the table: 394 of 480 applicants. The test set then contains 22 women and 137 men. Each of those women is about \(1/22\) of the women's rate, so a difference of two people is about nine points (\(2/22\)). On a group this small, read a modest difference together with the counts. That arithmetic says how far the percentage moves. It does not describe a step that turns two women down.
 
 The notebook fits the same short search three times. Gender remains a column in all three, so a rule is still allowed to say ``Gender is Male.'' What changes is the score.
+
+\begin{plainwords}
+\textbf{In plain words.} Three attempts at the same task follow, on the same applicants, with the same search. The first simply tries to be right as often as possible. The second changes how much each training applicant counts. The third fines the search for approving one group more often than the other. Gender stays in the table all three times. Two numbers are worth watching as they go past: how far apart the approval rates are, and how often the model is right.
+\end{plainwords}
 
 \subsection{Baseline: maximise MCC}
 
@@ -633,6 +837,10 @@ The selection rates are about \pct{27} and \pct{58}. The demographic-parity diff
 
 Accuracy is 94 of 159, about \pct{59}, which is below the \pct{70} of ``approve everyone.'' MCC is 0.17. The rules are picking up a real but modest association, and they approve men much more often than women.
 
+\begin{plainwords}
+\textbf{In plain words.} Nobody asked this model to be fair. It was asked to be right as often as it could, and left to that it approved well over half the men and about a quarter of the women. An eight-point difference in the recorded table came out as a thirty-point difference in the decisions. That is what the next two attempts try to repair.
+\end{plainwords}
+
 \subsection{Reweighing: make gender and the decision independent in the training weights}
 
 Kamiran and Calders (2012) give every training row a weight that depends only on its group and its label:
@@ -644,6 +852,12 @@ w(a, y)
 \]
 
 \(A\) is the sensitive group and \(Y\) is the label. A group--label pair that is rarer than independence would predict gets a weight above 1 and counts more. A pair that is more common gets a weight below 1. After reweighing, group and label are independent in the \emph{weighted} training sample. \fn{reweigh\_weights} computes \(w\), and \fn{weighted\_mcc\_loss} makes the search maximise MCC with those weights. The test metrics stay unweighted: they describe the original people.
+
+The weighted score is the ordinary MCC of Section~\ref{sec:search} with every count replaced by a sum of weights: a training row contributes \(w(a, y)\) to its box instead of 1.
+
+\begin{plainwords}
+\textbf{In plain words.} Nothing is deleted and nothing is invented. Some training rows are simply told to count as more than one person and others as less, chosen so that, in the counting the computer does, women and men are approved equally often. Pollsters do the same thing when a survey reaches too few of one kind of voter: the ones they did reach are weighted up. The search is then asked to do well on the reweighted count instead of the raw one.
+\end{plainwords}
 
 A round village makes the arithmetic obvious. One hundred applicants, 50 women and 50 men. Twenty women and forty men are approved.
 
@@ -705,6 +919,10 @@ with \(\lambda = 0.2\), the value used in the workshop and passed as \fn{lam=0.2
 
 On the scale of these demos, MCC is often between about 0.10 and 0.25. A thirty-point gap then costs \(0.2 \times 0.30 = 0.06\), a large slice of the score. The search has a concrete reason to trade some correlation for closer rates. It can spend that trade by approving fewer people in the higher group, by approving more people in the lower group, or by both.
 
+\begin{plainwords}
+\textbf{In plain words.} This time the search is fined. Every checklist is scored as before, and then a penalty is subtracted, in proportion to how unevenly that checklist approves the two groups. Being uneven now costs points, so a slightly less sharp checklist that treats the groups alike can beat a sharper one that does not. Notice what is \emph{not} said: nobody tells the search how to be even. It is only told that being uneven is expensive.
+\end{plainwords}
+
 The stored test result is the first of those, applied to both groups.
 
 \begin{table}[H]
@@ -722,6 +940,10 @@ Denials predicted as approval & 1 of 7 & 7 of 40 \\
 \end{table}
 
 The rates are about \pct{18} and \pct{24}. The difference is 0.06. The true-positive gap shrinks to about seven points and the false-positive gap to about three. Accuracy is 68 of 159, about \pct{43}, and MCC is 0.10. Both groups are approved far less often than the \pct{69} approval rate of the prepared table. Equal selection rates and a generous approval policy are different goals. The printed accuracy, or the MCC, is what shows the cost.
+
+\begin{plainwords}
+\textbf{In plain words.} It worked, and it cost something. The two approval rates are now within six points of each other --- and both of them are low. The model became even by approving fewer people everywhere, women and men alike. ``Equal'' and ``generous'' are two different requests, and only the first was made here. This is why accuracy is printed beside the gap: without it, the repair looks free.
+\end{plainwords}
 
 \subsection{The three test gaps side by side}
 
@@ -747,13 +969,40 @@ MCC minus \(0.2\times\)gap & 4 of 22 & 33 of 137 & 6 pts & 68/159 \\
 On this short run, reweighing does not land on equal test rates: it reverses the gap. The penalty does land near equal test rates, by approving 4 of 22 women and 33 of 137 men. Report the gap and the accuracy together. Demographic parity is silent about whether the shared rate is high or low.
 \end{lesson}
 
+The higher approval rate is whichever group the rules approve more often. The lower rate is the other group. The penalty subtracts \(0.2\) times the difference between those two. During the search the two rates are recomputed on the training rows, for every candidate. The notebook then prints the same kind of rates on the test people:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y Y c@{}}
+\toprule
+Fit & Lower & Higher & Gap \\
+\midrule
+Baseline & Women, 6 of 22 (\pct{27}) & Men, 79 of 137 (\pct{58}) & 30 pts \\
+\rowcolor{ebdrow}
+Reweighed & Men, 45 of 137 (\pct{33}) & Women, 17 of 22 (\pct{77}) & 44 pts \\
+Penalty & Women, 4 of 22 (\pct{18}) & Men, 33 of 137 (\pct{24}) & 6 pts \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{Take-home.} Reweighing changes how much each training row counts. A group-and-label pair rarer than independence counts for more, so approved women count for more while the search is training. In that weighted sample, gender and approval are independent. The test rates are still counted one person at a time. On this short run the search goes past equality: 17 of 22 women are approved and 45 of 137 men. The gap is 44 points, larger than the baseline's 30, and the women are now the higher group. Accuracy falls from 94 of 159 to 83 of 159.
+
+The other repair changes the score itself: MCC minus \(0.2\) times (higher rate minus lower rate). A 30-point gap costs \(0.06\), a large part of an MCC that sits around 0.10 to 0.25, so the search will give up some correlation to bring the rates together. On the same test people the gap falls to about 6 points. The penalty fit approves 4 of 22 women, two fewer than the baseline, and 33 of 137 men, down from 79. The gap narrows because far fewer men are approved as well. Both groups end up approved less often, at about \pct{18} and \pct{24}, below the \pct{69} approval rate of the table itself. Equal rates still leave open whether that shared rate is high or low.
+\end{plainwords}
+
 The notebook's introduction also names a third workshop idea: drop the gender column before training. The cells that run do not do this. Dropping the column means no rule can literally say ``Gender is Male.'' Married status, income, and property area can still differ by gender, so the selection rates can still diverge. The two repairs that \emph{are} fitted leave the column in place and change only the score.
 
 % ---------------------------------------------------------------------
 \section{Reading a notebook without getting lost}
 \label{sec:howto}
 
-Open the notebook beside this guide. On Colab, run the first cell once. It clones the repository and installs it. If the next cell cannot import \fn{ebdai}, restart the runtime and run all cells again.
+Open the notebook beside this guide. On Colab, run the first cell once. It clones the repository and installs it. If the next cell cannot import \fn{ebdai}, restart the runtime and run all cells again. Every formula behind the printed numbers is collected in Section~\ref{sec:formulas}.
+
+\begin{plainwords}
+\textbf{In plain words.} If you keep one habit from this guide, keep this one: read three numbers together. How often each group got the outcome in the data. How often the model gives it to them. How often the model is right. Any one of the three, on its own, can be made to tell a flattering story.
+\end{plainwords}
 
 \begin{enumerate}
   \item \textbf{Read the outcome-rate table before the fit.} Write down the two counts. That is the label gap, and it does not depend on the genetic search.

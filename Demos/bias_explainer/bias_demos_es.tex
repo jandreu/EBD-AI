@@ -8,6 +8,14 @@
 \usepackage{amsmath}
 \usepackage[italic,defaultmathsizes]{mathastext}
 
+% babel-spanish renders \max and \min as máx and mín with a math accent, which
+% mathastext places on top of the letter. Rebuild them with a text accent, after
+% \begin{document} so that babel's own definitions do not overwrite these.
+\AtBeginDocument{%
+  \renewcommand{\max}{\operatorname*{m\text{\'a}x}}%
+  \renewcommand{\min}{\operatorname*{m\text{\'\i}n}}%
+}
+
 \usepackage[a4paper, margin=16.5mm, top=15mm, bottom=16mm, headheight=15pt]{geometry}
 \usepackage{microtype}
 \usepackage{parskip}
@@ -35,6 +43,9 @@
 \definecolor{ebbluepale}{HTML}{E7F0F8}
 \definecolor{ebamber}{HTML}{8A4B08}
 \definecolor{ebamberpale}{HTML}{FBF4E6}
+\definecolor{ebdplum}{HTML}{6A4A78}
+\definecolor{ebdplumpale}{HTML}{F3EEF7}
+
 \definecolor{ebdmuted}{HTML}{5C6B7A}
 \definecolor{ebdtrack}{HTML}{E3E8ED}
 \definecolor{ebdrow}{HTML}{F6F8FA}
@@ -104,6 +115,12 @@
   colframe = ebamberpale,
   borderline west = {3pt}{0pt}{ebamber},
 }
+\newtcolorbox{plainwords}{
+  colback = ebdplumpale,
+  colframe = ebdplumpale,
+  borderline west = {3pt}{0pt}{ebdplum},
+}
+
 
 \newcommand{\fn}[1]{\texttt{\small #1}}
 \newcommand{\track}[2]{%
@@ -142,6 +159,10 @@ BDI es la caja de herramientas Explainable By Design AI. La frase es la definici
 
 En estos cuadernos ese objeto es una lista corta de reglas si--entonces. Si se pregunta por qué a un pasajero se le predijo la supervivencia, la respuesta es una frase que se puede señalar, más un número que dice cuánto encajó la frase con ese pasajero. \fn{explainable\_predict} devuelve esa explicación directamente: la clase predicha, el índice de la regla ganadora y el encaje.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} La mayoría de los sistemas de IA son un montón enorme de números. Entra una persona, sale una decisión y no hay ninguna pieza que se pueda señalar y llamar «el motivo». El modelo de estos cuadernos es distinto: todo él es una lista corta de frases corrientes, del tipo «si la pasajera es una mujer de edad media, predice que sobrevivió». Cuando alguien pregunta por qué le tocó esa respuesta, se lee la frase que ganó. Detrás no hay nada más.
+\end{plainwords}
+
 \begin{idea}
 \textbf{Dos maneras de explicar un modelo.} Una explicación a posteriori entrena un modelo opaco, como una red neuronal o un conjunto grande, y después construye otra historia sobre él: un mapa de saliencia, una lista de puntuaciones de variables, o un modelo más simple ajustado para copiarlo. Esa segunda historia puede ser útil, y puede no coincidir con el modelo que decidió. Un modelo explicable por diseño mantiene el procedimiento de decisión en una forma que se audita directamente. Aquí se auditan las frases que se disparan.
 \end{idea}
@@ -165,6 +186,10 @@ Esa auditoría ve tres cosas que un bloque de pesos no muestra como texto.
 \label{sec:law}
 
 La explicabilidad importa aquí porque la persona que recibe una decisión grave, y la persona a la que se pide vigilar el sistema, tienen que poder ver cómo se produjo ese resultado. En septiembre de 2026 las normas europeas ya lo exigen para muchas decisiones automáticas sobre personas. Otro conjunto de deberes, escrito expresamente para la IA de alto riesgo, ya está aprobado, con fechas de inicio posteriores. Esta sección es un mapa de esos deberes. No es un asesoramiento jurídico, y un cuaderno de clase no es un sistema introducido en el mercado.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Si un ordenador toma una decisión que te afecta de verdad --- un préstamo, un puesto de trabajo, un lugar en una lista de espera ---, la ley europea dice que alguien tiene que poder explicarte por qué, en un lenguaje que puedas seguir, y que tú tienes que poder rebatirlo. «Lo decidió el ordenador» no es una respuesta. Esa es la razón práctica para preferir un modelo que ya habla con frases: el motivo existe antes de que nadie lo pida, y es el mismo motivo que usó la máquina.
+\end{plainwords}
 
 \subsection{La explicación que ya se debe a una persona}
 
@@ -221,6 +246,10 @@ El calendario de alto riesgo no aplaza la prohibición de discriminar por sexo. 
 
 Un clasificador de reglas borrosas es una lista de frases si--entonces y una regla para elegir entre ellas. Las frases usan palabras blandas, así que un valor cerca de una frontera encaja con una palabra solo en parte. Estas demos entrenan ese clasificador con \fn{BaseFuzzyRulesClassifier}.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Imagina el modelo como una lista corta de comprobaciones que el ordenador escribió solo. Cada línea es una frase del tipo «si esto y esto, entonces predice aquello». Para decidir sobre una persona, cada frase de la lista se compara con ella y saca una nota de lo bien que le encaja. La frase que mejor encaja da la respuesta. El resto de esta sección explica las tres piezas que lo hacen funcionar: cómo una palabra como Baja puede encajar a medias, cómo se combinan varias condiciones en una sola nota, y de dónde salieron las frases.
+\end{plainwords}
+
 \begin{table}[H]
 \centering
 \small
@@ -248,6 +277,10 @@ Un corte nítido diría que una edad menor de 30 es joven y que cualquier edad m
 \]
 
 Cero significa que la palabra no alcanza este valor. Uno significa que la palabra encaja del todo. Un número intermedio significa un encaje parcial. Las palabras vecinas se solapan, así que una edad puede ser en parte Baja y en parte Media.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Supón que una regla usa la palabra «joven». Con una línea dura en los 30, quien tiene 29 es joven y quien tiene 30 ya no, y un cumpleaños cambia la decisión. Una palabra borrosa no se comporta así: a los 22 la palabra encaja del todo, a los 33 encaja a medias y a los 45 no encaja nada. Quien está cerca de una frontera es en parte una palabra y en parte la siguiente. Se parece más a como habla la gente, y ningún día suelto decide nada.
+\end{plainwords}
 
 Una frase de ese tipo, de las que imprime el cuaderno de insuficiencia cardíaca, es:
 
@@ -286,6 +319,10 @@ Cuando una regla tiene varias condiciones, los encajes se multiplican. Ese produ
 
 Una regla puede usar como máximo tres condiciones en estas demos (\fn{nAnts=3}). Un hueco de condición puede quedar sin usar, y por eso una regla impresa suele ser más corta que tres. La puntuación de decisión es el disparo multiplicado por el peso de la regla. Las demos 9 y 10 fijan \fn{ds\_mode=1}, que obliga a que cada peso valga 1, así que el disparo solo es la puntuación. La demo 11 fija \fn{ds\_mode=2}: la búsqueda elige también un peso para cada regla, y un disparo modesto puede ganar cuando el peso es alto.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Una frase con varias condiciones funciona como una cadena. Cada condición saca una nota entre 0 y 1 para esa persona, y las notas se multiplican: dos medios encajes dejan un cuarto. Y una condición que no encaja nada --- una nota de 0 --- deja muda toda la frase para esa persona, por bien que encajen las demás.
+\end{plainwords}
+
 \subsection{La regla ganadora}
 
 Para cada persona el modelo puntúa todas las reglas. Gana la regla con la puntuación más alta, y su cláusula \textbf{entonces} es la predicción. \fn{explainable\_predict} devuelve esa predicción junto con el índice de la regla ganadora. \fn{winning\_rules\_by\_group} cuenta esos índices dentro de cada grupo sensible.
@@ -311,6 +348,10 @@ Para cada persona el modelo puntúa todas las reglas. Gana la regla con la puntu
 
 Algunos clasificadores borrosos suman todas las reglas que votan por una clase y comparan esos totales. Estos cuadernos se quedan con una sola ganadora. \fn{predict} devuelve el consecuente de esa regla, y \fn{explainable\_predict} nombra la misma regla. La frase que se lee es la frase que decidió.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Todas las frases miran a la misma persona a la vez y cada una dice cuánto le encaja. La que mejor encaja gana sin más, y su mitad «entonces» es la respuesta del modelo. No hay votación ni promedio. Así que para cada persona hay exactamente una frase responsable de la respuesta, y el cuaderno puede contar a quién decidió cada frase. Esos recuentos, separados por sexo o por género, son casi todo lo que hacen las demos 9 y 10.
+\end{plainwords}
+
 Al lado de cada regla impresa hay tres números.
 
 \begin{itemize}
@@ -318,6 +359,26 @@ Al lado de cada regla impresa hay tres números.
   \item \textbf{ACC} es la parte de los casos en los que esta regla ganó \emph{y} acertó. Una regla rara puede tener un ACC del 100\,\% y aun así apenas afectar a nadie.
   \item \textbf{WGHT} es el peso usado en el momento de decidir. Vale 1.0 en todas las demos 9 y 10.
 \end{itemize}
+
+\begin{plainwords}
+\textbf{En palabras llanas.} El DS dice cuánto trabajo hace una frase. El ACC dice con qué frecuencia acierta cuando hace ese trabajo. Es fácil confundirlos, y responden a preguntas distintas: una frase puede acertar todas y cada una de las veces que habla y hablar de casi nadie. Hay que leerlos juntos, o una nota al pie parecerá el asunto principal. Esa es justo la trampa que tiende la demo de insuficiencia cardíaca.
+\end{plainwords}
+
+Esos dos primeros números se cuentan así. Escribe \(\mu_r(x_i)\) para la fuerza de disparo de la regla \(r\) en la persona \(i\), sea \(c\) la clase del lado ENTONCES de esa regla y sea \(N\) el número de filas de entrenamiento:
+
+\[
+\mathrm{DS}_r
+=
+\underbrace{\frac{1}{N}\sum_{i\,:\,y_i = c} \mu_r(x_i)}_{\text{soporte}}
+\;\times\;
+\underbrace{\frac{\sum_{i\,:\,y_i = c} \mu_r(x_i)}{\sum_{i} \mu_r(x_i)}}_{\text{confianza}}
+\qquad
+\mathrm{ACC}_r
+=
+\frac{\#\{\,i : \text{gana } r \text{, y } c = y_i\,\}}{\#\{\,i : \text{gana } r\,\}}
+\]
+
+El soporte es cuánto se dispara la regla sobre su propia clase, repartido sobre la tabla entera. La confianza es la parte de todo su disparo que cae en esa clase. Una regla que se dispara con todo el mundo tiene un soporte grande y una confianza pequeña, y el producto queda pequeño. El ACC cuenta solo a las personas que la regla decidió de verdad, y así es como una regla llega al \pct{100} con un puñado de ellas. Ambos se calculan sobre las filas de entrenamiento. Estas son las formas de tipo 1 que usan las demos; con conjuntos de tipo 2 por intervalos se promedian antes el disparo inferior y el superior.
 
 \subsection{Cómo elige la búsqueda las frases}
 \label{sec:search}
@@ -335,6 +396,10 @@ En estos cuadernos las frases no se escriben a mano. Una búsqueda genética man
 
 Se usa el MCC porque la exactitud halaga a una regla perezosa en una tabla desigual. En los pasajeros de prueba del Titanic, predecir que todos murieron acertaría en 136 de 235 personas, cerca del \pct{58}. Las reglas ajustadas aciertan en 153 de 235, cerca del \pct{65}, y su MCC es solo 0.26. En las solicitudes de prueba de los préstamos, aprobar a todo el mundo acertaría en 112 de 159 personas, cerca del \pct{70}. Las reglas de base aciertan en 94 de 159, cerca del \pct{59}, mientras su MCC se mantiene positivo en 0.17 porque algunas denegaciones son correctas. La exactitud bajó. La correlación no desapareció. La búsqueda sigue la correlación.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Nadie escribe estas frases. El ordenador parte de doce listas al azar, prueba cada una con las filas de entrenamiento, se queda con las que fueron mejor, las mezcla y las retoca, y vuelve a empezar. Es ensayo y error, y sobreviven las mejores conjeturas. La puntuación que intenta subir mide cuánto concuerda una lista entera con lo que pasó de verdad. Se evita la exactitud a secas porque, en una tabla donde murió la mayoría, la lista perezosa «murieron todos» puntúa bien sin decir nada.
+\end{plainwords}
+
 \begin{careful}
 \textbf{La búsqueda de estos cuadernos está pensada para una clase.} Cada ajuste prueba 12 conjuntos candidatos de reglas durante como máximo 6 generaciones y para tras 3 generaciones sin mejora (\fn{n\_gen=6}, \fn{pop\_size=12}, \fn{patience=3}). Los valores por defecto de la biblioteca son mucho mayores. Lee las reglas guardadas como una demostración de las medidas. Una búsqueda más larga puede escribir frases distintas. La manera de leer una regla impresa sigue siendo la misma.
 \end{careful}
@@ -346,6 +411,10 @@ Hay hasta 8 reglas disponibles en el Titanic y en los préstamos (\fn{nRules=8})
 \label{sec:picture}
 
 Con ese clasificador a la vista, los cuadernos preguntan a qué grupo eligen las frases. Cada número de abajo es la ejecución guardada en los cuadernos: la misma partición de entrenamiento y prueba (\fn{test\_size=0.33}, \fn{random\_state=42}) y la búsqueda corta de la sección~\ref{sec:search}.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} A partir de aquí la guía deja de explicar la maquinaria y empieza a leer resultados. Cada demo hace las mismas dos preguntas, y en el mismo orden. Primera: en los datos tal como se registraron, ¿con qué frecuencia le ocurrió el suceso a cada grupo? Segunda: una vez entrenado el modelo, ¿con qué frecuencia \emph{predice} ese suceso para cada grupo, y cuántas veces acierta? Ahí el sesgo deja de ser una palabra y se convierte en esos números.
+\end{plainwords}
 
 \begin{lesson}
 \textbf{Titanic (demo 9).} En la tabla preparada, sobreviven 195 de 259 mujeres y 93 de 453 hombres. En los pasajeros reservados, las reglas predicen la supervivencia para 49 de 86 mujeres y para ninguno de 149 hombres.
@@ -397,6 +466,10 @@ El suceso es lo que el cuaderno pasa como \fn{positive\_label=1}. Las herramient
 
 Usa como ejemplo seguido a las mujeres de prueba del Titanic: 86 mujeres, de las cuales 64 sobrevivieron y 22 murieron. Las reglas predicen la supervivencia para 49 de ellas. De esas 49, 33 habían sobrevivido y 16 habían muerto.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} En esta sección solo aparecen dos clases de número, y todo lo demás se construye con ellas. La primera cuenta lo que les pasó a las personas: de las mujeres que iban a bordo, ¿cuántas sobrevivieron? La segunda cuenta lo que dice el modelo: de las mujeres del conjunto de prueba, ¿a cuántas les predice la supervivencia? La primera pertenece a la historia; la segunda, al modelo. Compararlas grupo a grupo es todo lo que hace un informe de equidad.
+\end{plainwords}
+
 \begin{idea}
 \textbf{Tasa del suceso}: antes del modelo. Entre las personas del grupo, ¿con qué frecuencia ocurrió el suceso?
 
@@ -428,6 +501,10 @@ Parte el grupo según lo que ocurrió de verdad.
 
 El TPR y el FPR responden a una pregunta distinta de la tasa de selección. Dos grupos pueden ser seleccionados con la misma frecuencia mientras los errores caen sobre personas distintas. Dos grupos también pueden tener tasas de error parecidas y tasas de selección muy distintas, porque el suceso ya era más frecuente en un grupo.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Que te elijan con la misma frecuencia no es lo mismo que que te traten igual de bien. Imagina dos listas de supervivientes predichos del mismo tamaño, una formada por las personas correctas y otra formada sobre todo por las equivocadas. La tasa de selección no las distingue; el TPR y el FPR sí. El TPR pregunta: de las personas que debía elegir, ¿a cuántas eligió? El FPR pregunta: de las personas que debía dejar fuera, ¿a cuántas eligió igualmente?
+\end{plainwords}
+
 \subsection{Paridad demográfica y equalized odds}
 
 La paridad demográfica compara tasas de selección. El cuaderno imprime dos resúmenes.
@@ -443,9 +520,94 @@ Una diferencia de 0 y un cociente de 1 significan que los grupos se seleccionan 
 
 Equalized odds compara las tasas de error. La diferencia impresa es la \emph{mayor} entre la brecha de TPR y la brecha de FPR. En el conjunto de prueba del Titanic la brecha de FPR es la mayor: a las mujeres que murieron se les predice la supervivencia el \pct{73} de las veces, y a los hombres que murieron se les predice la supervivencia el \pct{0} de las veces.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Dos definiciones de justo, y no piden lo mismo. Paridad demográfica: a los dos grupos se los elige con la misma frecuencia, sin mirar si los elegidos eran los correctos. Equalized odds: el modelo se equivoca en la misma proporción en los dos grupos, sin mirar a cuántos elige. Cuando el suceso es de verdad más frecuente en un grupo, ningún modelo puede cumplir las dos a la vez: cerrar una brecha abre la otra. Eso no es un defecto del programa. Es una elección que tiene que hacer una persona y saber defender.
+\end{plainwords}
+
 \begin{careful}
 \textbf{Un cociente de 0 suele significar que una tasa es cero.} El conjunto de prueba de la insuficiencia cardíaca tiene una tasa de falsos positivos de 0 para los hombres, así que \fn{equalized\_odds\_ratio} se imprime como 0 aunque la brecha de TPR sea de 10 puntos y la de FPR de 5 puntos. Lee \fn{tpr\_difference} y \fn{fpr\_difference} antes de leer el cociente. La diferencia es la cantidad que usa la penalización de los préstamos.
 \end{careful}
+
+\subsection{Cada número impreso, en símbolos}
+\label{sec:formulas}
+
+Fija un grupo \(a\) --- las mujeres, por ejemplo --- y un suceso, el valor que el cuaderno pasa como \fn{positive\_label}. Dentro de ese grupo cada persona cae en exactamente una de cuatro casillas, según lo que ocurrió de verdad y lo que predijo el modelo.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y Y@{}}
+\toprule
+Dentro del grupo \(a\) & El modelo predice el suceso & El modelo predice el otro resultado \\
+\midrule
+El suceso ocurrió & \(TP_a\) & \(FN_a\) \\
+\rowcolor{ebdrow}
+El suceso no ocurrió & \(FP_a\) & \(TN_a\) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent
+Esas cuatro cuentas, con el tamaño del grupo \(n_a = TP_a + FP_a + FN_a + TN_a\), son todo aquello con lo que se construye el informe.
+
+\[
+\text{tasa del suceso}_a = \frac{TP_a + FN_a}{n_a}
+\qquad
+\text{tasa de selección}_a = \frac{TP_a + FP_a}{n_a}
+\]
+
+\[
+\mathrm{TPR}_a = \frac{TP_a}{TP_a + FN_a}
+\quad
+\mathrm{FPR}_a = \frac{FP_a}{FP_a + TN_a}
+\quad
+\mathrm{FNR}_a = \frac{FN_a}{TP_a + FN_a}
+\quad
+\mathrm{TNR}_a = \frac{TN_a}{FP_a + TN_a}
+\]
+
+La tasa del suceso cuenta solo etiquetas, así que no depende del modelo: \fn{outcome\_rates\_by\_group} se llama sobre la tabla preparada entera antes de entrenar, y \fn{fairness\_report} sobre las filas de prueba. Las dos últimas tasas son las dos primeras restadas de 1, \(\mathrm{FNR} = 1 - \mathrm{TPR}\) y \(\mathrm{TNR} = 1 - \mathrm{FPR}\); el marco imprime las cuatro porque leer una fila es más cómodo que restar.
+
+Una brecha convierte una de esas tasas en un solo número para toda la tabla. Lo hacen dos operadores, sobre los grupos \(a\) en los que la tasa está definida:
+
+\[
+\Delta(v) = \max_a v_a - \min_a v_a
+\qquad
+\rho(v) = \frac{\min_a v_a}{\max_a v_a}
+\]
+
+\(\Delta\) vale 0 y \(\rho\) vale 1 cuando los grupos coinciden. Con más de dos grupos siguen comparando el más alto con el más bajo. Cada resumen que imprime el cuaderno es uno de esos dos operadores aplicado a una de las tasas de arriba.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y c@{}}
+\toprule
+Clave impresa & Qué calcula & Grupos iguales dan \\
+\midrule
+\fn{selection\_rate} & \((TP_a + FP_a) / n_a\), una fila por grupo & --- \\
+\rowcolor{ebdrow}
+\fn{demographic\_parity\_difference} & \(\Delta(\text{tasa de selección})\) & 0 \\
+\fn{demographic\_parity\_ratio} & \(\rho(\text{tasa de selección})\) & 1 \\
+\rowcolor{ebdrow}
+\fn{tpr\_difference} & \(\Delta(\mathrm{TPR})\) & 0 \\
+\fn{fpr\_difference} & \(\Delta(\mathrm{FPR})\) & 0 \\
+\rowcolor{ebdrow}
+\fn{equalized\_odds\_difference} & \(\max\{\Delta(\mathrm{TPR}),\; \Delta(\mathrm{FPR})\}\) & 0 \\
+\fn{equalized\_odds\_ratio} & \(\min\{\rho(\mathrm{TPR}),\; \rho(\mathrm{FPR})\}\) & 1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Cada línea de esa tabla es la misma receta de dos pasos. Se calcula un porcentaje para cada grupo --- con qué frecuencia se los elige, o con qué frecuencia el modelo se equivoca con ellos --- y luego se comparan los grupos restando el más pequeño del más grande, o dividiendo uno entre otro. La resta da un número que vale 0 cuando los grupos coinciden; la división, uno que vale 1 cuando coinciden. No ocurre nada más complicado.
+\end{plainwords}
+
+\begin{careful}
+\textbf{Una casilla vacía deja la tasa indefinida, no en cero.} Un grupo en el que nadie experimentó el suceso tiene \(TP_a + FN_a = 0\) y por tanto no tiene TPR: el marco imprime \fn{NaN}, y ese grupo se salta al tomar el máximo y el mínimo. Un cociente vale 0 exactamente cuando la tasa más pequeña es 0, y queda indefinido cuando lo es la más grande. Esa es la aritmética que hay detrás del aviso de arriba.
+\end{careful}
+
+Esas mismas cuatro cuentas, tomadas sobre todas las filas a la vez en lugar de grupo a grupo, son el \(TP\), el \(FP\), el \(FN\) y el \(TN\) del MCC de la Sección~\ref{sec:search}. Esa es la diferencia entre las dos clases de número de esta guía. El MCC puntúa al modelo sobre todo el mundo. Las brechas comparan lo que el modelo le hace a un grupo con lo que le hace a otro. La Sección~\ref{sec:loans} mete después una brecha dentro de la propia puntuación de entrenamiento.
 
 % ---------------------------------------------------------------------
 \section{Titanic: el desequilibrio ya está en las etiquetas}
@@ -467,6 +629,10 @@ Hombres & \track{0.205}{ebdmen} & 93 de 453 \\
 
 \noindent
 Este es el estado de la tabla antes del entrenamiento. Una regla a la que se permite decir «el sexo es mujer» tiene una asociación grande y real que copiar. El patrón histórico de estos datos, que las mujeres sobreviven mucho más a menudo que los hombres, se ve sin un modelo.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} En este barco se rescató a las mujeres mucho más a menudo que a los hombres, y eso es sencillamente lo que registra la tabla. Así que un modelo al que se le permite leer el sexo no necesita ser listo: copiar ese único hecho ya lo lleva casi todo el camino. Lo que sigue comprueba si hizo exactamente eso.
+\end{plainwords}
 
 \subsection{Las seis frases que conservó la búsqueda corta}
 
@@ -513,6 +679,10 @@ Muertes predichas como supervivencia & 16 de 22 & 0 de 114 \\
 \end{tabularx}
 \end{table}
 
+\begin{plainwords}
+\textbf{En palabras llanas.} El resultado en una línea: a toda mujer que al modelo le pareció del tipo que sobrevive se le predijo la supervivencia, y a todos y cada uno de los hombres se les predijo la muerte --- incluidos los 35 hombres que sí sobrevivieron. Una sola frase, sobre mujeres de la banda de edad media, hace casi todo el trabajo, y el sexo es la palabra en la que se apoya.
+\end{plainwords}
+
 Esas 49 supervivencias predichas son exactamente las 49 mujeres para las que ganó la regla de supervivencia. No gana para ningún hombre, así que a todos los hombres se les predice la muerte, incluidos los 35 hombres que sobrevivieron. La diferencia de paridad demográfica es 0.57. La brecha de error mayor es la de falsos positivos, 0.73, y esa es la diferencia de equalized odds.
 
 La exactitud en la prueba es 153 de 235, cerca del \pct{65}, frente al \pct{58} de la regla «todos murieron». El MCC de prueba es 0.26. El modelo ha aprendido algo, y lo que ha aprendido se concentra en el sexo.
@@ -520,6 +690,16 @@ La exactitud en la prueba es 153 de 235, cerca del \pct{65}, frente al \pct{58} 
 \begin{lesson}
 En esta tabla la brecha de las etiquetas y la brecha de las predicciones apuntan en la misma dirección. Las mujeres sobreviven mucho más a menudo, la regla más alta dice que una mujer en la banda central de edad sobrevivió, y en los pasajeros de prueba esa regla es la única fuente de supervivencias predichas.
 \end{lesson}
+
+\begin{plainwords}
+\textbf{Para quedarse con esto.} El \(0.57\) impreso es un recuento de los pasajeros de prueba. De 86 mujeres, las reglas predicen la supervivencia para 49. De 149 hombres, no la predicen para ninguno:
+\[
+\frac{49}{86} - \frac{0}{149} \approx 0.57.
+\]
+A las mujeres se les predice la supervivencia cerca del \pct{57} de las veces, y a los hombres el \pct{0}. Como la tasa de los hombres es cero, esa única tasa es toda la brecha. Es la proporción \(0.57\), fácil de leer como «0.57 por ciento». Es un número distinto de la exactitud: en estos mismos pasajeros las reglas aciertan en 153 de 235 personas, cerca del \pct{65}.
+
+El \pct{57} dice con qué frecuencia se da a cada grupo una predicción de supervivencia. La tasa de verdaderos positivos y la de falsos positivos dicen si esa predicción fue acertada, una vez que las personas se separan por lo que ocurrió de verdad. A una mujer que sobrevivió se la encuentra en 33 de 64 casos. A un hombre que sobrevivió no se lo encuentra nunca, los 35. A una mujer que murió se le predice aun así la supervivencia en 16 de 22 casos. A un hombre que murió, nunca. Equalized odds se cumple cuando esas dos diferencias son cero. El cuaderno imprime la mayor. Aquí es cerca de 0.73, la brecha de falsos positivos.
+\end{plainwords}
 
 % ---------------------------------------------------------------------
 \section{Insuficiencia cardíaca: etiquetas parecidas, una regla rara}
@@ -541,6 +721,10 @@ Hombres & \track{0.320}{ebdmen} & 62 de 194 \\
 
 \noindent
 Las dos barras son la lección de las etiquetas. Muere cerca de un paciente de cada tres, en los dos grupos. Un modelo puede aun así escribir una frase que nombre el sexo. La puntuación de dominancia dice si esa frase importa.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Aquí los dos grupos mueren prácticamente en la misma proporción, así que no hay desequilibrio que copiar. Aun así el modelo escribió una frase con la palabra sexo dentro --- y resulta que esa frase no decide casi nada. Esta es la demo que enseña a preguntar cuánto se usa una frase antes de decidir qué significa. Una regla que nunca se equivoca y casi nunca se usa es una curiosidad, no una política.
+\end{plainwords}
 
 \begin{table}[H]
 \centering
@@ -592,6 +776,30 @@ Estas frases son una búsqueda de seis generaciones sobre unos cientos de pacien
 Una brecha de etiquetas cerca de cero no promete que ninguna regla nombre la columna sensible. Mira la puntuación de dominancia al lado de cualquier regla que lo haga. Aquí la columna la nombra una regla que el modelo casi nunca usa, y la brecha de predicción en los pacientes de prueba es un puñado de personas.
 \end{lesson}
 
+Una brecha, en esta guía, es la diferencia entre la tasa de las mujeres y la tasa de los hombres. La misma resta se hace tres veces, porque hay tres tasas.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Y c c c@{}}
+\toprule
+Qué se cuenta & Mujeres & Hombres & Brecha \\
+\midrule
+Muerte ya en la tabla & 34 de 105 & 62 de 194 & unos 0 puntos \\
+Muerte predicha en la prueba & 3 de 32 & 2 de 67 & unos 6 puntos \\
+Muertes que el modelo encontró & 2 de 12 & 2 de 30 & unos 10 puntos \\
+\rowcolor{ebdrow}
+Falsas alarmas, entre quienes vivieron & 1 de 20 & 0 de 37 & unos 5 puntos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{Para quedarse con esto.} La primera fila es la brecha de las etiquetas: con qué frecuencia había ocurrido ya la muerte, antes de entrenar ninguna regla. La segunda es la brecha de las predicciones: con qué frecuencia las reglas dicen «muerte». Las dos últimas son las brechas de error, entre pacientes con el mismo desenlace verdadero. «Un puñado de personas» es esa segunda fila: 3 muertes predichas frente a 2.
+
+Equalized odds se cumple cuando las dos brechas de error son cero. El cuaderno imprime la mayor de ellas, aquí 0.10. El cociente impreso es 0 porque la tasa de falsas alarmas de los hombres es exactamente cero. Ese cero es una falsa alarma frente a ninguna, sobre 20 y 37 personas. Las dos diferencias son las cantidades que hay que leer.
+\end{plainwords}
+
 % ---------------------------------------------------------------------
 \section{Préstamos: cambiar la puntuación que la búsqueda maximiza}
 \label{sec:loans}
@@ -611,9 +819,13 @@ Hombres & \track{0.706}{ebdmen} & 278 de 394 \\
 \end{table}
 
 \noindent
-La brecha de etiquetas es de unos ocho puntos porcentuales, 278/394 frente a 54/86. Los hombres son además la mayor parte de la tabla: 394 de 480 solicitantes. El conjunto de prueba contiene entonces 22 mujeres y 137 hombres. Que dos mujeres pasen de un lado de un recuento al otro cambia la tasa femenina en unos nueve puntos (\(2/22\)). Lee los porcentajes de los préstamos junto con los recuentos.
+La brecha de etiquetas es de unos ocho puntos porcentuales, 278/394 frente a 54/86. Los hombres son además la mayor parte de la tabla: 394 de 480 solicitantes. El conjunto de prueba contiene entonces 22 mujeres y 137 hombres. Cada una de esas mujeres es cerca de \(1/22\) de la tasa de las mujeres, así que una diferencia de dos personas son unos nueve puntos (\(2/22\)). En un grupo tan pequeño, una diferencia modesta se lee junto con los recuentos. Esa cuenta dice cuánto se mueve el porcentaje. No describe un paso que deniegue a dos mujeres.
 
 El cuaderno ajusta la misma búsqueda corta tres veces. El género sigue siendo una columna en las tres, así que una regla todavía puede decir «Gender is Male». Lo que cambia es la puntuación.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Vienen tres intentos de la misma tarea, con los mismos solicitantes y la misma búsqueda. El primero solo intenta acertar todo lo que pueda. El segundo cambia cuánto cuenta cada solicitante del entrenamiento. El tercero multa a la búsqueda por aprobar más a un grupo que al otro. El género sigue en la tabla las tres veces. Conviene vigilar dos números según pasan: cuánto se separan las tasas de aprobación, y cuántas veces acierta el modelo.
+\end{plainwords}
 
 \subsection{Base: maximizar el MCC}
 
@@ -638,6 +850,10 @@ Las tasas de selección son cerca del \pct{27} y del \pct{58}. La diferencia de 
 
 La exactitud es 94 de 159, cerca del \pct{59}, por debajo del \pct{70} de «aprobar a todo el mundo». El MCC es 0.17. Las reglas están recogiendo una asociación real pero modesta, y aprueban a los hombres mucho más a menudo que a las mujeres.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} A este modelo nadie le pidió que fuera justo. Se le pidió que acertara todo lo que pudiera y, a su aire, aprobó a bastante más de la mitad de los hombres y a cerca de una cuarta parte de las mujeres. Una diferencia de ocho puntos en la tabla registrada salió como una diferencia de treinta puntos en las decisiones. Eso es lo que intentan reparar los dos intentos siguientes.
+\end{plainwords}
+
 \subsection{Reponderación: hacer independientes el género y la decisión en los pesos de entrenamiento}
 
 Kamiran y Calders (2012) dan a cada fila de entrenamiento un peso que depende solo de su grupo y de su etiqueta:
@@ -649,6 +865,12 @@ w(a, y)
 \]
 
 \(A\) es el grupo sensible e \(Y\) es la etiqueta. Un par grupo--etiqueta más raro de lo que prediría la independencia recibe un peso por encima de 1 y cuenta más. Un par más frecuente recibe un peso por debajo de 1. Tras la reponderación, el grupo y la etiqueta son independientes en la muestra de entrenamiento \emph{ponderada}. \fn{reweigh\_weights} calcula \(w\), y \fn{weighted\_mcc\_loss} hace que la búsqueda maximice el MCC con esos pesos. Las métricas de prueba siguen sin ponderar: describen a las personas originales.
+
+La puntuación ponderada es el MCC corriente de la Sección~\ref{sec:search} con cada recuento sustituido por una suma de pesos: una fila de entrenamiento aporta \(w(a, y)\) a su casilla en lugar de 1.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} No se borra nada ni se inventa nada. A unas filas de entrenamiento se les dice que cuenten como más de una persona y a otras que cuenten como menos, elegido de modo que, en las cuentas que hace el ordenador, mujeres y hombres resulten aprobados con la misma frecuencia. Las encuestas hacen lo mismo cuando llegan a poca gente de cierto tipo: se da más peso a quienes sí respondieron. Después se le pide a la búsqueda que lo haga bien sobre ese recuento ponderado en lugar del recuento bruto.
+\end{plainwords}
 
 Un pueblo redondo hace evidente la aritmética. Cien solicitantes, 50 mujeres y 50 hombres. Se aprueba a veinte mujeres y a cuarenta hombres.
 
@@ -710,6 +932,10 @@ con \(\lambda = 0.2\), el valor usado en el taller y pasado como \fn{lam=0.2}. L
 
 En la escala de estas demos, el MCC suele estar entre cerca de 0.10 y 0.25. Una brecha de treinta puntos cuesta entonces \(0.2 \times 0.30 = 0.06\), una tajada grande de la puntuación. La búsqueda tiene un motivo concreto para cambiar algo de correlación por tasas más próximas. Puede gastar ese cambio aprobando a menos personas del grupo más alto, aprobando a más personas del grupo más bajo, o de las dos maneras.
 
+\begin{plainwords}
+\textbf{En palabras llanas.} Esta vez se multa a la búsqueda. Cada lista candidata se puntúa como antes y después se le resta una penalización, proporcional a lo desigualmente que aprueba a los dos grupos. Ser desigual ahora cuesta puntos, así que una lista algo menos fina que trata igual a los dos grupos puede ganarle a otra más fina que no lo hace. Fíjate en lo que \emph{no} se dice: nadie le explica a la búsqueda cómo ser pareja. Solo se le dice que no serlo sale caro.
+\end{plainwords}
+
 El resultado de prueba guardado es la primera de esas, aplicada a los dos grupos.
 
 \begin{table}[H]
@@ -727,6 +953,10 @@ Denegaciones predichas como aprobación & 1 de 7 & 7 de 40 \\
 \end{table}
 
 Las tasas son cerca del \pct{18} y del \pct{24}. La diferencia es 0.06. La brecha de verdaderos positivos se reduce a unos siete puntos y la de falsos positivos a unos tres. La exactitud es 68 de 159, cerca del \pct{43}, y el MCC es 0.10. A los dos grupos se les aprueba mucho menos a menudo que la tasa de aprobación del \pct{69} de la tabla preparada. Unas tasas de selección iguales y una política de aprobación generosa son objetivos distintos. La exactitud impresa, o el MCC, es lo que muestra el coste.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Funcionó, y costó algo. Las dos tasas de aprobación están ahora a menos de seis puntos una de otra --- y las dos son bajas. El modelo se volvió parejo aprobando a menos gente en todas partes, mujeres y hombres por igual. «Igual» y «generoso» son dos peticiones distintas, y aquí solo se hizo la primera. Por eso la exactitud se imprime al lado de la brecha: sin ella, la reparación parece gratis.
+\end{plainwords}
 
 \subsection{Las tres brechas de prueba, una al lado de la otra}
 
@@ -752,13 +982,40 @@ MCC menos \(0.2\times\)brecha & 4 de 22 & 33 de 137 & 6 pts & 68/159 \\
 En esta ejecución corta, la reponderación no aterriza en tasas de prueba iguales: invierte la brecha. La penalización sí aterriza cerca de tasas de prueba iguales, aprobando a 4 de 22 mujeres y a 33 de 137 hombres. Informa de la brecha y de la exactitud juntas. La paridad demográfica no dice si la tasa compartida es alta o baja.
 \end{lesson}
 
+La tasa de aprobación más alta es la del grupo, mujeres u hombres, al que las reglas aprueban más a menudo. La más baja es la del otro grupo. La penalización resta \(0.2\) veces la diferencia entre esas dos. Durante la búsqueda las dos tasas se recalculan sobre las filas de entrenamiento, para cada candidata. El cuaderno imprime después el mismo tipo de tasas sobre las personas de prueba:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l Y Y c@{}}
+\toprule
+Ajuste & Más baja & Más alta & Brecha \\
+\midrule
+Base & Mujeres, 6 de 22 (\pct{27}) & Hombres, 79 de 137 (\pct{58}) & 30 pts \\
+\rowcolor{ebdrow}
+Reponderado & Hombres, 45 de 137 (\pct{33}) & Mujeres, 17 de 22 (\pct{77}) & 44 pts \\
+Penalización & Mujeres, 4 de 22 (\pct{18}) & Hombres, 33 de 137 (\pct{24}) & 6 pts \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{plainwords}
+\textbf{Para quedarse con esto.} La reponderación cambia cuánto cuenta cada fila de entrenamiento. Un par de grupo y etiqueta más raro de lo que prediría la independencia cuenta más, así que las mujeres aprobadas cuentan más mientras entrena la búsqueda. En esa muestra ponderada, el género y la aprobación son independientes. Las tasas de prueba se siguen contando de persona en persona. En esta ejecución corta la búsqueda se pasa de la igualdad: se aprueba a 17 de 22 mujeres y a 45 de 137 hombres. La brecha es de 44 puntos, mayor que los 30 de la base, y ahora las mujeres son el grupo más alto. La exactitud baja de 94 de 159 a 83 de 159.
+
+La otra reparación cambia la propia puntuación: el MCC menos \(0.2\) veces (tasa más alta menos tasa más baja). Una brecha de 30 puntos cuesta \(0.06\), una parte grande de un MCC que anda entre 0.10 y 0.25, así que la búsqueda cederá algo de correlación para acercar las tasas. En las mismas personas de prueba la brecha baja a unos 6 puntos. El ajuste con penalización aprueba a 4 de 22 mujeres, dos menos que la base, y a 33 de 137 hombres, por debajo de 79. La brecha se estrecha porque también se aprueba a muchos menos hombres. Los dos grupos acaban aprobados con menos frecuencia, cerca del \pct{18} y del \pct{24}, por debajo de la tasa de aprobación del \pct{69} de la propia tabla. Unas tasas iguales dejan todavía abierta la pregunta de si esa tasa compartida es alta o baja.
+\end{plainwords}
+
 La introducción del cuaderno nombra también una tercera idea del taller: quitar la columna de género antes de entrenar. Las celdas que se ejecutan no lo hacen. Quitar la columna significa que ninguna regla puede decir literalmente «Gender is Male». El estado civil, el ingreso y la zona de la vivienda todavía pueden diferir por género, así que las tasas de selección todavía pueden separarse. Las dos reparaciones que \emph{sí} se ajustan dejan la columna en su sitio y cambian solo la puntuación.
 
 % ---------------------------------------------------------------------
 \section{Leer un cuaderno sin perderse}
 \label{sec:howto}
 
-Abre el cuaderno al lado de esta guía. En Colab, ejecuta la primera celda una vez. Clona el repositorio y lo instala. Si la celda siguiente no puede importar \fn{ebdai}, reinicia el entorno y vuelve a ejecutar todas las celdas.
+Abre el cuaderno al lado de esta guía. En Colab, ejecuta la primera celda una vez. Clona el repositorio y lo instala. Si la celda siguiente no puede importar \fn{ebdai}, reinicia el entorno y vuelve a ejecutar todas las celdas. Todas las fórmulas que hay detrás de los números impresos están reunidas en la Sección~\ref{sec:formulas}.
+
+\begin{plainwords}
+\textbf{En palabras llanas.} Si de esta guía te quedas con una sola costumbre, que sea esta: leer tres números juntos. Con qué frecuencia cada grupo obtuvo el resultado en los datos. Con qué frecuencia se lo da el modelo. Con qué frecuencia acierta el modelo. Cualquiera de los tres, por separado, puede contar una historia halagadora.
+\end{plainwords}
 
 \begin{enumerate}
   \item \textbf{Lee la tabla de la tasa del suceso antes del ajuste.} Anota los dos recuentos. Esa es la brecha de las etiquetas, y no depende de la búsqueda genética.
