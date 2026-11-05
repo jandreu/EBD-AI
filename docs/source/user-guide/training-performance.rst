@@ -8,7 +8,9 @@ turn them on, and no public option changes because of them.
 
 This page explains what those optimizations are, what switches each one on, and
 what to do when training is slower than you expect or when you suspect a fast
-path of misbehaving. You do not need any of this to use the library — it is here
+path of misbehaving. One option, ``batch_size``, does exist: it trades time for
+memory on training sets too large to score at once, again without changing
+results (see :ref:`performance-batch-size`). You do not need any of this to use the library — it is here
 for when you want to know why a fit took the time it did.
 
 The guarantee
@@ -81,8 +83,9 @@ as fast as another one.
    * - Optimization
      - Active when
    * - Array evaluator
-     - The built-in objective (no ``custom_loss``), Type-1 or Type-2 sets, and
-       ordinary — not temporal — partitions.
+     - The built-in objective (no ``custom_loss``) and Type-1 or Type-2 sets.
+       Temporal partitions from ``ebdai.temporal`` are not a list of
+       ``fuzzyVariable`` and keep the object decoder.
    * - Fit-local caches
      - The built-in objective, the ``pymoo`` or ``evox`` backend, no thread
        runner and no checkpointing. The firing cache additionally needs fixed
@@ -200,6 +203,52 @@ whose memberships must be recomputed for every candidate. On small problems the
 measurement usually keeps scoring on the CPU, and the default PyMoo backend is
 usually the faster choice altogether.
 
+.. _performance-batch-size:
+
+Training sets too large for memory
+==================================
+
+Scoring a candidate holds its firing strengths for every training sample at
+once: a samples x rules array, plus temporaries of the same size. With millions
+of samples they stop fitting in memory. ``batch_size`` makes every candidate
+compute them for that many samples at a time:
+
+.. code-block:: python
+
+   clf = BaseFuzzyRulesClassifier(nRules=30, nAnts=4,
+                                  linguistic_variables=partitions,
+                                  batch_size=100_000)
+
+Every candidate is still scored on all the training samples and gets exactly
+the same score as without ``batch_size``, so the fit, its rules and its
+predictions are the same. A candidate reads the samples in two or three passes:
+the first sums each rule's firing strengths for the dominance scores, the second
+finds every sample's winning rule for pruning, and a third, only when pruning
+removed rules, finds the winners among the survivors for the macro F1.
+
+Batches would change how those sums round, so they are added in NumPy's own
+order, which depends only on the total number of samples. That order differs
+between NumPy releases: it is checked when the fit starts, and a NumPy whose
+order BDI does not recognize raises a ``ValueError``.
+
+- **Memory falls, time rises a little.** On 2,000,000 synthetic samples with 10
+  features, 30 rules and fixed partitions, the peak memory of scoring one
+  Type-1 candidate fell from about 1,000 MB to 95 MB with
+  ``batch_size=100_000`` (25 MB with 20,000), and scoring took 8-16% longer.
+  Interval Type-2 fell from about 2,100 MB to 60 MB and took about a third
+  longer. On data that still fits in memory streaming costs relatively more
+  (about twice the time at 200,000 samples), so leave ``batch_size`` unset
+  unless memory is the problem. These are local measurements on one machine.
+- **What stays proportional to the data:** ``X``, the labels and, with fixed
+  partitions, the membership values computed once for the fit. Optimized
+  partitions recompute the memberships of each batch instead. The final model
+  and any checkpoints are evaluated on all the samples at once, as before.
+- **Requirements:** the built-in objective with Type-1 or interval Type-2 sets.
+  A custom loss or ``candidate_rules`` cannot be combined with it, and general
+  Type-2 sets are rejected. Population batching and the GPU objective hold
+  whole generations of firing strengths, so they stay off while it streams.
+- A ``batch_size`` at or above the number of samples changes nothing.
+
 When training is slower than expected
 =====================================
 
@@ -215,6 +264,10 @@ Work down this list:
 4. **Expect large datasets to cost more per candidate, not less.** Beyond a few
    thousand samples the per-candidate work is dominated by the data itself, and
    the optimizations that remove fixed overhead have proportionally less to give.
+5. **Score the early generations on fewer samples.** ``initial_data_fraction``
+   starts the search on a share of the training samples and grows it to all of
+   them (see :ref:`ga-growing-data`). Unlike everything else on this page, it
+   changes the search and so the fitted model.
 
 For a rough sense of scale: on synthetic 1,000-sample data, the optimizations
 described here take a complete fit from about 4.0 s to about 0.5 s with
@@ -237,7 +290,8 @@ disable them and see whether your results change.
 
 This single switch turns off the array evaluator, population batching and the
 device objective, sending every candidate through the original rule-object
-implementation. Restore it by setting it back to ``True``. To rule out only the
+implementation, which also scores every sample at once whatever ``batch_size``
+says. Restore it by setting it back to ``True``. To rule out only the
 GPU objective, set ``evf.FitRuleBase.torch_devices = ()``.
 
 To compare properly, fit twice with the same ``random_state`` and check that the
