@@ -98,9 +98,10 @@ Registration and docs:
 - `docs/source/changelog.rst`, `docs/source/index.rst` — EBD-AI's own; only a
   hand-written entry and the toctree edit were applied.
 - `docs/source/optimize.rst` and `docs/source/user-guide/training-performance.rst`
-  — the upstream hunks were **skipped, not merged**. `training-performance.rst`
-  is where upstream documents `batch_size`; that section still needs porting
-  (see below).
+  — upstream branding was not taken. The `batch_size` and
+  `initial_data_fraction` sections were ported afterwards (see below); the
+  array-evaluator row still notes that `ebdai.temporal` partitions keep the
+  object decoder.
 - The temporal `FUZZY_SETS` members are **not** coming back to `ex_fuzzy`. If
   code needs the temporal flavour, use `ebdai.temporal`.
 
@@ -114,24 +115,28 @@ Registration and docs:
   together: 24 passed after the docs pass.
 - The documented install path works: `pip install "ebdai @ git+…"` yields
   `ex_fuzzy 3.3.1`.
-- **Not** verified: Sphinx build, `tests/test_keel_benchmark.py`, demo
-  notebooks, and the two large CPU-bound benchmarks (`benchmark_streamed_memory.py`,
+- Sphinx HTML build (`sphinx-build -b html docs/source /tmp/opencode/docs-build -W`):
+  succeeded. `temporal.html` exists (the `tmpfs` toctree entry is gone), and the
+  `batch_size` / `initial_data_fraction` cross-references resolve. Two duplicate
+  object-description warnings (`MasterRuleBase.pruning_tolerance`,
+  `class_priors`) are pre-existing and did not fail the build.
+- **Not** verified: `tests/test_keel_benchmark.py`, demo notebooks, and the two
+  large CPU-bound benchmarks (`benchmark_streamed_memory.py`,
   `benchmark_regression_unique_antecedents.py`).
 
 ## Remaining work
 
-1. **Review and merge** `sync/upstream-post-3.3.0` (single commit `468af94`).
-   Nothing is on `main` yet.
-2. Port the upstream `batch_size` documentation into
-   `docs/source/user-guide/training-performance.rst`, and any still-relevant
-   hunks of `docs/source/optimize.rst`. Compare with
-   `git -C /tmp/opencode/exfuzzy-upstream diff v3.3.0 main -- docs/source`.
-3. Build the docs to check the new page and the `tmpfs` → `temporal` toctree
-   change (`sphinx-build -b html docs/source /tmp/docs`), since the deleted
-   `docs/source/tmpfs.rst` used to satisfy that toctree.
-4. Optional: run `python Demos/run_notebooks.py` (no notebook was edited, but
+1. **Review and merge** `sync/upstream-post-3.3.0`. The sync commit is
+   `468af94`; the docs follow-up (this session) ports `batch_size` into
+   `docs/source/user-guide/training-performance.rst` and `initial_data_fraction`
+   into `docs/source/optimize.rst`. Nothing is on `main` yet.
+2. Done: the Sphinx build above. `docs/source/temporal.rst` satisfies the
+   toctree entry that used to point at the deleted `tmpfs.rst`.
+3. Optional: run `python Demos/run_notebooks.py` (no notebook was edited, but
    the version string appears in outputs).
-5. When merged: `git worktree remove /tmp/opencode/ebdai-sync`.
+4. When merged: `git worktree remove /tmp/opencode/ebdai-sync` if that worktree
+   still exists. This session continued in the main checkout
+   (`~/github/EBD-AI` on `sync/upstream-post-3.3.0`), not in a worktree.
 
 ## Gotchas
 
